@@ -22,10 +22,11 @@ const cors = require("cors");
 dbConnect();
 app.use(morgan("dev"));
 app.use(cors({
-  origin: [ 'https://sparkly-parfait-622eb7.netlify.app/','https://sparkly-parfait-622eb7.netlify.app/admin'], // Allow requests from this origin
+  origin: 'https://sparkly-parfait-622eb7.netlify.app', // Allow requests from this origin 
   methods: ['GET', 'POST', 'PUT', 'DELETE'], // Allowed HTTP methods
   credentials: true, // If you're sending cookies/auth headers
 }));
+
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
