@@ -22,7 +22,7 @@ const cors = require("cors");
 dbConnect();
 app.use(morgan("dev"));
 app.use(cors({
-  origin: 'https://rococo-blancmange-487923.netlify.app', // Allow requests from this origin 
+  origin: 'https://prabanjampgm.com', // Allow requests from this origin 
   methods: ['GET', 'POST', 'PUT', 'DELETE'], // Allowed HTTP methods
   credentials: true, // If you're sending cookies/auth headers
 }));
