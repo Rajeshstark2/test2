@@ -1,10 +1,11 @@
-const { Cashfree } = require("@cashfreepayments/cashfree-sdk");
+const cashfree = require("@cashfreepayments/cashfree-sdk");
 
-const cashfree = new Cashfree({
-  env: 'PROD',
+// Initialize Cashfree
+const cf = new cashfree.Cashfree({
+  env: 'PROD', // 'TEST' or 'PROD'
   apiVersion: '2022-09-01',
   appId: process.env.CASHFREE_APP_ID,
-  secretKey: process.env.CASHFREE_SECRET_KEY,
+  secretKey: process.env.CASHFREE_SECRET_KEY
 });
 
 const createOrder = async (req, res) => {
@@ -25,7 +26,7 @@ const createOrder = async (req, res) => {
       }
     };
 
-    const order = await cashfree.orders.createOrder(orderData);
+    const order = await cf.orders.createOrder(orderData);
     
     res.json({
       success: true,
@@ -44,7 +45,7 @@ const verifyPayment = async (req, res) => {
   try {
     const { order_id, payment_id } = req.body;
     
-    const payment = await cashfree.orders.getPayment(order_id);
+    const payment = await cf.orders.getPayment(order_id);
     
     if (payment.payment_status === "SUCCESS") {
       res.json({
@@ -71,7 +72,7 @@ const handleWebhook = async (req, res) => {
     const signature = req.headers["x-webhook-signature"];
     
     // Verify webhook signature
-    const isValid = cashfree.verifyWebhookSignature(
+    const isValid = cf.verifyWebhookSignature(
       JSON.stringify(webhookData),
       signature,
       process.env.CASHFREE_WEBHOOK_SECRET
