@@ -74,7 +74,3 @@ module.exports = {
   checkout,
   paymentVerification,
 };
-
-  checkout,
-  paymentVerification,
-};
