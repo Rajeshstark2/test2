@@ -38,12 +38,18 @@ var orderSchema = new mongoose.Schema(
       },
     },
     paymentInfo: {
-      type: Object,
-      default: {
-        orderId: "",
-        orderToken: "",
-        paymentStatus: "",
+      cashfreeOrderId: {
+        type: String,
+        required: true,
       },
+      cashfreePaymentId: {
+        type: String,
+        required: true,
+      },
+      paymentStatus: {
+        type: String,
+        required: true,
+      }
     },
     orderItems: [
       {
