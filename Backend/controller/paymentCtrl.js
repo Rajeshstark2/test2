@@ -1,71 +1,66 @@
-const { Payouts } = require('cashfree-sdk');
+const Cashfree = require("cashfree-sdk");
 
-const instance = new Payouts({
-  env: 'sandbox', // Use 'production' for live
-  appId: process.env.CASHFREE_APP_ID,
-  clientId: process.env.CASHFREE_CLIENT_ID,
-  clientSecret: process.env.CASHFREE_CLIENT_SECRET,
+// Initialize Cashfree Payment Gateway
+const paymentGateway = Cashfree.Payouts;
+paymentGateway.Init({
+  ENV: 'TEST',
+  ClientID: process.env.CASHFREE_APP_ID,
+  ClientSecret: process.env.CASHFREE_CLIENT_SECRET,
 });
 
 const checkout = async (req, res) => {
   try {
     const { amount } = req.body;
-    const orderId = `order_${Date.now()}`;
-    
-    const orderData = {
+    const orderId = 'order_' + Date.now();
+
+    const createOrderData = {
       orderId: orderId,
       orderAmount: amount,
       orderCurrency: 'INR',
-      orderNote: 'Order from Cart Corner',
-      customerDetails: {
-        customerId: req.user._id,
-        customerName: req.user.firstname + ' ' + req.user.lastname,
-        customerEmail: req.user.email,
-        customerPhone: req.user.mobile,
-      },
-      orderMeta: {
-        returnUrl: `${process.env.FRONTEND_URL}/payment-verification?order_id={order_id}&order_token={order_token}`,
-        notifyUrl: `${process.env.BACKEND_URL}/api/user/order/payment-webhook`,
-      },
     };
 
-    const order = await instance.createOrder(orderData);
-    
+    const response = await paymentGateway.Orders.CreateOrder(createOrderData);
+
     res.json({
       success: true,
-      order,
+      order: response,
     });
   } catch (error) {
+    console.error('Cashfree order creation error:', error);
     res.status(500).json({
       success: false,
-      message: error.message,
+      error: error.message
     });
   }
 };
 
 const paymentVerification = async (req, res) => {
   try {
-    const { orderId, orderToken } = req.query;
+    const { orderId } = req.query;
     
-    const orderStatus = await instance.getOrderStatus(orderId);
+    const orderStatus = await paymentGateway.Orders.GetStatus({
+      orderId: orderId
+    });
     
     if (orderStatus.orderStatus === 'PAID') {
       res.json({
         success: true,
-        orderId,
-        orderToken,
+        orderId: orderStatus.orderId,
+        orderToken: orderStatus.orderToken,
         paymentStatus: 'PAID',
       });
     } else {
       res.json({
         success: false,
-        message: 'Payment failed',
+        message: 'Payment verification failed',
+        status: orderStatus.orderStatus
       });
     }
   } catch (error) {
+    console.error('Cashfree payment verification error:', error);
     res.status(500).json({
       success: false,
-      message: error.message,
+      error: error.message
     });
   }
 };
