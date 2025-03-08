@@ -48,8 +48,9 @@ var orderSchema = new mongoose.Schema(
       },
       paymentStatus: {
         type: String,
+        enum: ["SUCCESS", "FAILED", "PENDING"],
         required: true,
-      }
+      },
     },
     orderItems: [
       {
@@ -99,5 +100,5 @@ var orderSchema = new mongoose.Schema(
   }
 );
 
-//Export the model
+// Export the model
 module.exports = mongoose.model("Order", orderSchema);
