@@ -1,71 +1,104 @@
-const Cashfree = require("cashfree-sdk");
+const { Cashfree } = require("@cashfreepayments/cashfree-sdk");
 
-// Initialize Cashfree Payment Gateway
-const paymentGateway = Cashfree.Payouts;
-paymentGateway.Init({
-  ENV: 'TEST',
-  ClientID: process.env.CASHFREE_APP_ID,
-  ClientSecret: process.env.CASHFREE_CLIENT_SECRET,
+const cashfree = new Cashfree({
+  env: 'PROD',
+  apiVersion: '2022-09-01',
+  appId: process.env.CASHFREE_APP_ID,
+  secretKey: process.env.CASHFREE_SECRET_KEY,
 });
 
-const checkout = async (req, res) => {
+const createOrder = async (req, res) => {
   try {
     const { amount } = req.body;
-    const orderId = 'order_' + Date.now();
-
-    const createOrderData = {
-      orderId: orderId,
-      orderAmount: amount,
-      orderCurrency: 'INR',
+    
+    const orderData = {
+      order_amount: amount,
+      order_currency: "INR",
+      customer_details: {
+        customer_id: req.user._id,
+        customer_email: req.user.email,
+        customer_phone: req.user.mobile || "",
+      },
+      order_meta: {
+        return_url: `${process.env.FRONTEND_URL}/payment-status?order_id={order_id}`,
+        notify_url: `${process.env.BACKEND_URL}/api/payment/webhook`,
+      }
     };
 
-    const response = await paymentGateway.Orders.CreateOrder(createOrderData);
-
+    const order = await cashfree.orders.createOrder(orderData);
+    
     res.json({
       success: true,
-      order: response,
+      order,
     });
   } catch (error) {
-    console.error('Cashfree order creation error:', error);
+    console.error("Error creating order:", error);
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 };
 
-const paymentVerification = async (req, res) => {
+const verifyPayment = async (req, res) => {
   try {
-    const { orderId } = req.query;
+    const { order_id, payment_id } = req.body;
     
-    const orderStatus = await paymentGateway.Orders.GetStatus({
-      orderId: orderId
-    });
+    const payment = await cashfree.orders.getPayment(order_id);
     
-    if (orderStatus.orderStatus === 'PAID') {
+    if (payment.payment_status === "SUCCESS") {
       res.json({
         success: true,
-        orderId: orderStatus.orderId,
-        orderToken: orderStatus.orderToken,
-        paymentStatus: 'PAID',
+        paymentStatus: payment.payment_status,
+        cashfreeOrderId: order_id,
+        cashfreePaymentId: payment_id,
       });
     } else {
-      res.json({
-        success: false,
-        message: 'Payment verification failed',
-        status: orderStatus.orderStatus
-      });
+      throw new Error("Payment verification failed");
     }
   } catch (error) {
-    console.error('Cashfree payment verification error:', error);
+    console.error("Error verifying payment:", error);
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
+    });
+  }
+};
+
+const handleWebhook = async (req, res) => {
+  try {
+    const webhookData = req.body;
+    const signature = req.headers["x-webhook-signature"];
+    
+    // Verify webhook signature
+    const isValid = cashfree.verifyWebhookSignature(
+      JSON.stringify(webhookData),
+      signature,
+      process.env.CASHFREE_WEBHOOK_SECRET
+    );
+
+    if (!isValid) {
+      throw new Error("Invalid webhook signature");
+    }
+
+    // Handle webhook event
+    if (webhookData.event === "PAYMENT_SUCCESS") {
+      // Update order status in your database
+      console.log("Payment successful for order:", webhookData.orderId);
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Webhook error:", error);
+    res.status(400).json({
+      success: false,
+      error: error.message,
     });
   }
 };
 
 module.exports = {
-  checkout,
-  paymentVerification,
+  createOrder,
+  verifyPayment,
+  handleWebhook,
 };
