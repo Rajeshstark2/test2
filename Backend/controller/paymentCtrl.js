@@ -1,105 +1,73 @@
-const cashfree = require("@cashfreepayments/cashfree-sdk");
+const cashfree = require("cashfree-pg");
+require("dotenv").config();
 
-// Initialize Cashfree
-const cf = new cashfree.Cashfree({
-  env: 'PROD', // 'TEST' or 'PROD'
-  apiVersion: '2022-09-01',
-  appId: process.env.CASHFREE_APP_ID,
-  secretKey: process.env.CASHFREE_SECRET_KEY
-});
+// Configure Cashfree
+cashfree.XClientId = process.env.CASHFREE_APP_ID;
+cashfree.XClientSecret = process.env.CASHFREE_SECRET_KEY;
+cashfree.XEnvironment = "PROD"; // Change to "PROD" for live payments
 
-const createOrder = async (req, res) => {
+// Checkout Function (Create Order)
+const checkout = async (req, res) => {
   try {
-    const { amount } = req.body;
-    
+    const { amount, orderId, customerEmail, customerPhone } = req.body;
+
     const orderData = {
       order_amount: amount,
       order_currency: "INR",
+      order_id: orderId, // Unique order ID
       customer_details: {
-        customer_id: req.user._id,
-        customer_email: req.user.email,
-        customer_phone: req.user.mobile || "",
+        customer_id: `cust_${Date.now()}`, // Unique customer ID
+        customer_email: customerEmail,
+        customer_phone: customerPhone,
       },
       order_meta: {
-        return_url: `${process.env.FRONTEND_URL}/payment-status?order_id={order_id}`,
-        notify_url: `${process.env.BACKEND_URL}/api/payment/webhook`,
-      }
+        return_url: `https://prabanjampgm.com/payment-success?order_id={order_id}`,
+      },
     };
 
-    const order = await cf.orders.createOrder(orderData);
-    
-    res.json({
-      success: true,
-      order,
-    });
-  } catch (error) {
-    console.error("Error creating order:", error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
-  }
-};
+    const orderResponse = await cashfree.PGCreateOrder(orderData);
 
-const verifyPayment = async (req, res) => {
-  try {
-    const { order_id, payment_id } = req.body;
-    
-    const payment = await cf.orders.getPayment(order_id);
-    
-    if (payment.payment_status === "SUCCESS") {
+    if (orderResponse.status === "ACTIVE") {
       res.json({
         success: true,
-        paymentStatus: payment.payment_status,
-        cashfreeOrderId: order_id,
-        cashfreePaymentId: payment_id,
+        order: orderResponse,
       });
     } else {
-      throw new Error("Payment verification failed");
+      res.status(400).json({ success: false, message: "Order creation failed" });
     }
   } catch (error) {
-    console.error("Error verifying payment:", error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
+    console.error("Cashfree Error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
-const handleWebhook = async (req, res) => {
+// Payment Verification Function
+const paymentVerification = async (req, res) => {
   try {
-    const webhookData = req.body;
-    const signature = req.headers["x-webhook-signature"];
-    
-    // Verify webhook signature
-    const isValid = cf.verifyWebhookSignature(
-      JSON.stringify(webhookData),
-      signature,
-      process.env.CASHFREE_WEBHOOK_SECRET
-    );
+    const { orderId } = req.body;
 
-    if (!isValid) {
-      throw new Error("Invalid webhook signature");
+    const paymentDetails = await cashfree.PGFetchOrder(orderId);
+
+    if (paymentDetails.order_status === "PAID") {
+      res.json({
+        success: true,
+        message: "Payment verified",
+        paymentDetails,
+      });
+    } else {
+      res.json({
+        success: false,
+        message: "Payment not completed",
+        paymentDetails,
+      });
     }
-
-    // Handle webhook event
-    if (webhookData.event === "PAYMENT_SUCCESS") {
-      // Update order status in your database
-      console.log("Payment successful for order:", webhookData.orderId);
-    }
-
-    res.json({ success: true });
   } catch (error) {
-    console.error("Webhook error:", error);
-    res.status(400).json({
-      success: false,
-      error: error.message,
-    });
+    console.error("Payment Verification Error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
 module.exports = {
-  createOrder,
-  verifyPayment,
-  handleWebhook,
+  checkout,
+  paymentVerification,
 };
