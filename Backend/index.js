@@ -36,6 +36,7 @@ app.use("/api/coupon", couponRouter);
 app.use("/api/color", colorRouter);
 app.use("/api/enquiry", enqRouter);
 app.use("/api/upload", uploadRouter);
+app.use("/api/user", paymentRoute);
 
 app.use(notFound);
 app.use(errorHandler);
