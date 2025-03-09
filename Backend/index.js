@@ -1,4 +1,4 @@
-yParser = require("body-parser");
+const bodyParser = require("body-parser");
 const express = require("express");
 const dbConnect = require("./config/dbConnect");
 const { notFound, errorHandler } = require("./middlewares/errorHandler");
@@ -40,4 +40,4 @@ app.use(notFound);
 app.use(errorHandler);
 app.listen(PORT, () => {
   console.log(`Server is running  at PORT ${PORT}`);
-}); 
+});
