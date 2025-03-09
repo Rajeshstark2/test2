@@ -28,7 +28,7 @@ dbConnect();
 // Middleware
 app.use(morgan("dev"));
 app.use(cors({
- origin: ['https://prabanjampgm.com', 'https://rococo-blancmange-487923.netlify.app/']// Allow requests from your website
+ origin: ['https://prabanjampgm.com', 'https://rococo-blancmange-487923.netlify.app/'],// Allow requests from your website
   methods: ['GET', 'POST', 'PUT', 'DELETE'], // Allowed HTTP methods
   credentials: true, // Allow cookies/auth headers
 }));
