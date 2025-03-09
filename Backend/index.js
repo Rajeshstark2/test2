@@ -1,16 +1,10 @@
-const bodyParser = require("body-parser");
+yParser = require("body-parser");
 const express = require("express");
 const dbConnect = require("./config/dbConnect");
 const { notFound, errorHandler } = require("./middlewares/errorHandler");
-const dotenv = require("dotenv").config();
-const cookieParser = require("cookie-parser");
-const morgan = require("morgan");
-const cors = require("cors");
-
 const app = express();
+const dotenv = require("dotenv").config();
 const PORT = 5000;
-
-// Import Routes
 const authRouter = require("./routes/authRoute");
 const productRouter = require("./routes/productRoute");
 const blogRouter = require("./routes/blogRoute");
@@ -21,22 +15,16 @@ const colorRouter = require("./routes/colorRoute");
 const enqRouter = require("./routes/enqRoute");
 const couponRouter = require("./routes/couponRoute");
 const uploadRouter = require("./routes/uploadRoute");
+const cookieParser = require("cookie-parser");
+const morgan = require("morgan");
+const cors = require("cors");
 
-// Database Connection
 dbConnect();
-
-// Middleware
 app.use(morgan("dev"));
-app.use(cors({
- origin: ['https://prabanjampgm.com', 'https://rococo-blancmange-487923.netlify.app/'],// Allow requests from your website
-  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Allowed HTTP methods
-  credentials: true, // Allow cookies/auth headers
-}));
+app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
-
-// Routes
 app.use("/api/user", authRouter);
 app.use("/api/product", productRouter);
 app.use("/api/blog", blogRouter);
@@ -48,11 +36,8 @@ app.use("/api/color", colorRouter);
 app.use("/api/enquiry", enqRouter);
 app.use("/api/upload", uploadRouter);
 
-// Error Handling Middleware
 app.use(notFound);
 app.use(errorHandler);
-
-// Start Server
 app.listen(PORT, () => {
-  console.log(`Server is running at PORT ${PORT}`);
-});
+  console.log(`Server is running  at PORT ${PORT}`);
+}); 
