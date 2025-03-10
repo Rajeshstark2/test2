@@ -40,16 +40,16 @@ var orderSchema = new mongoose.Schema(
     paymentInfo: {
       cashfreeOrderId: {
         type: String,
-        required: true,
+        required: false,
       },
       cashfreePaymentId: {
         type: String,
-        required: true,
+        required: false,
       },
       paymentStatus: {
         type: String,
         enum: ["SUCCESS", "FAILED", "PENDING"],
-        required: true,
+        default: "PENDING",
       },
     },
     orderItems: [
