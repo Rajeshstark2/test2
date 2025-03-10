@@ -5,7 +5,7 @@ require("dotenv").config();
 // Configure Cashfree
 cashfree.XClientId = process.env.CASHFREE_APP_ID;
 cashfree.XClientSecret = process.env.CASHFREE_SECRET_KEY;
-cashfree.XEnvironment = "PROD"; // Changed to PROD for production
+cashfree.XEnvironment = "PROD";
 
 // Create Order and Initialize Payment
 const checkout = async (req, res) => {
@@ -17,16 +17,28 @@ const checkout = async (req, res) => {
       shippingInfo 
     } = req.body;
 
+    // Validate required fields
+    if (!totalPrice || !orderItems || !shippingInfo) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields"
+      });
+    }
+
     // First create the order in your database
     const newOrder = await Order.create({
       user: req.user._id,
       orderItems,
       totalPrice,
-      totalPriceAfterDiscount,
+      totalPriceAfterDiscount: totalPriceAfterDiscount || totalPrice,
       shippingInfo,
+      orderStatus: "Pending",
+      paymentInfo: {
+        status: "Pending"
+      }
     });
 
-    // Create Cashfree order with production settings
+    // Create Cashfree order
     const orderData = {
       order_amount: totalPriceAfterDiscount || totalPrice,
       order_currency: "INR",
@@ -37,23 +49,39 @@ const checkout = async (req, res) => {
         customer_phone: shippingInfo.mobile || "",
       },
       order_meta: {
-        return_url: `${process.env.FRONTEND_URL}/order-success/{order_id}`, // Updated return URL
-        notify_url: `${process.env.BACKEND_URL}/api/payment/webhook`,
+        return_url: `${process.env.FRONTEND_URL}/order-success/{order_id}`,
+        notify_url: `${process.env.BACKEND_URL}/api/user/webhook`,
       },
       order_tags: {
         type: "ecommerce",
       },
     };
 
+    console.log("Creating Cashfree order with data:", orderData);
+
     const orderResponse = await cashfree.PGCreateOrder(orderData);
 
+    console.log("Cashfree response:", orderResponse);
+
     if (orderResponse.status === "ACTIVE") {
+      // Update order with payment link
+      await Order.findByIdAndUpdate(
+        newOrder._id,
+        {
+          paymentInfo: {
+            ...newOrder.paymentInfo,
+            paymentLink: orderResponse.payment_link
+          }
+        },
+        { new: true }
+      );
+
       res.json({
         success: true,
         order: {
           ...orderResponse,
           orderId: newOrder._id,
-          paymentLink: orderResponse.payment_link,
+          payment_link: orderResponse.payment_link
         },
       });
     } else {
@@ -61,7 +89,8 @@ const checkout = async (req, res) => {
       await Order.findByIdAndDelete(newOrder._id);
       res.status(400).json({ 
         success: false, 
-        message: "Payment initialization failed" 
+        message: "Payment initialization failed",
+        error: orderResponse.message
       });
     }
   } catch (error) {
@@ -69,7 +98,8 @@ const checkout = async (req, res) => {
     res.status(500).json({ 
       success: false, 
       message: "Error processing payment",
-      error: error.message 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 };
@@ -79,12 +109,18 @@ const paymentVerification = async (req, res) => {
   try {
     const { orderId, paymentId, txStatus } = req.body;
 
+    if (!orderId || !paymentId) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields"
+      });
+    }
+
     const orderStatus = await cashfree.PGFetchOrder({
       order_id: orderId,
     });
 
     if (orderStatus.order_status === "PAID") {
-      // Update order status in database
       await Order.findByIdAndUpdate(
         orderId,
         {
@@ -102,7 +138,6 @@ const paymentVerification = async (req, res) => {
         message: "Payment verified successfully",
       });
     } else {
-      // If payment failed, update order status
       await Order.findByIdAndUpdate(
         orderId,
         {
