@@ -34,7 +34,7 @@ const checkout = async (req, res) => {
       shippingInfo,
       orderStatus: "Pending",
       paymentInfo: {
-        status: "Pending"
+        paymentStatus: "PENDING"
       }
     });
 
@@ -64,12 +64,13 @@ const checkout = async (req, res) => {
     console.log("Cashfree response:", orderResponse);
 
     if (orderResponse.status === "ACTIVE") {
-      // Update order with payment link
+      // Update order with payment link and Cashfree order ID
       await Order.findByIdAndUpdate(
         newOrder._id,
         {
           paymentInfo: {
-            ...newOrder.paymentInfo,
+            paymentStatus: "PENDING",
+            cashfreeOrderId: orderResponse.order_id,
             paymentLink: orderResponse.payment_link
           }
         },
@@ -125,8 +126,9 @@ const paymentVerification = async (req, res) => {
         orderId,
         {
           paymentInfo: {
-            paymentId: paymentId,
-            status: "Success",
+            paymentStatus: "SUCCESS",
+            cashfreePaymentId: paymentId,
+            cashfreeOrderId: orderId
           },
           orderStatus: "Processing",
         },
@@ -142,8 +144,9 @@ const paymentVerification = async (req, res) => {
         orderId,
         {
           paymentInfo: {
-            paymentId: paymentId,
-            status: "Failed",
+            paymentStatus: "FAILED",
+            cashfreePaymentId: paymentId,
+            cashfreeOrderId: orderId
           },
           orderStatus: "Failed",
         },
