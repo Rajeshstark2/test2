@@ -1,0 +1,168 @@
+.main-product-wrapper {
+    padding: 20px 0;
+  }
+  
+  .main-product-image {
+    margin-bottom: 20px;
+  }
+  
+  .main-product-details {
+    padding: 20px;
+  }
+  
+  .product-heading {
+    font-size: 16px;
+    margin-bottom: 0;
+  }
+  
+  .quantity-wrapper {
+    width: 100%;
+    max-width: 120px;
+    margin: 10px 0;
+  }
+  
+  .cart-button-wrapper {
+    width: 100%;
+    max-width: 200px;
+  }
+  
+  .button {
+    padding: 12px 24px;
+    font-size: 16px;
+    font-weight: 500;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+  }
+  
+  /* Mobile Responsive Styles */
+  @media screen and (max-width: 768px) {
+    .main-product-wrapper {
+      padding: 10px 0;
+    }
+  
+    .main-product-image {
+      margin-bottom: 15px;
+    }
+  
+    .other-product-images {
+      justify-content: center;
+    }
+  
+    .main-product-details {
+      padding: 15px;
+    }
+  
+    .product-heading {
+      font-size: 14px;
+      margin-bottom: 5px;
+    }
+  
+    .quantity-wrapper {
+      margin: 5px 0;
+    }
+  
+    .cart-button-wrapper {
+      width: 100%;
+      max-width: none;
+      margin-top: 10px;
+    }
+  
+    .button {
+      width: 100%;
+      padding: 10px 20px;
+      font-size: 14px;
+    }
+  
+    /* Fix for image zoom on mobile */
+    .react-image-zoom {
+      width: 100% !important;
+      height: auto !important;
+    }
+  
+    /* Improve touch targets */
+    input[type="number"] {
+      height: 44px;
+      font-size: 16px;
+    }
+  
+    /* Better spacing for product info */
+    .price {
+      font-size: 20px !important;
+      margin: 10px 0;
+    }
+  
+    .product-data {
+      font-size: 14px;
+      margin-bottom: 5px;
+    }
+  
+    /* Improve review section on mobile */
+    .review-wrapper {
+      padding: 15px;
+    }
+  
+    .review-form textarea {
+      font-size: 16px;
+    }
+  
+    /* Fix for color selection */
+    .colors {
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+  
+    .color-wrapper {
+      min-width: 40px;
+      height: 40px;
+    }
+  }
+  
+  /* Add loading state */
+  .button.loading {
+    opacity: 0.7;
+    cursor: not-allowed;
+    position: relative;
+  }
+  
+  .button.loading::after {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: auto;
+    border: 4px solid transparent;
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: button-loading-spinner 1s ease infinite;
+  }
+  
+  @keyframes button-loading-spinner {
+    from {
+      transform: rotate(0turn);
+    }
+    to {
+      transform: rotate(1turn);
+    }
+  }
+  
+  /* Improve hover states */
+  .button:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+  }
+  
+  /* Add smooth transitions */
+  .main-product-details {
+    transition: all 0.3s ease;
+  }
+  
+  /* Fix image aspect ratio */
+  .main-product-image img {
+    object-fit: contain;
+    width: 100%;
+    height: auto;
+  }
