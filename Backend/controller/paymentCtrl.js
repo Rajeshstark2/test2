@@ -1,13 +1,14 @@
-const cashfree = require("cashfree-pg");
+const cashfree = require("cashfree-pg"); // Import Cashfree SDK
 const Order = require("../models/orderModel");
 require("dotenv").config();
 
-// ✅ Correctly Initialize Cashfree SDK
-cashfree.PG.init({
-  appId: process.env.CASHFREE_APP_ID,
-  secretKey: process.env.CASHFREE_SECRET_KEY,
+// ✅ Initialize Cashfree PG module
+cashfree.PGInit({
+  clientId: process.env.CASHFREE_APP_ID,
+  clientSecret: process.env.CASHFREE_SECRET_KEY,
   environment: "PRODUCTION", // Use "SANDBOX" for testing
 });
+
 
 // ✅ Checkout: Create Order and Initialize Payment
 const checkout = async (req, res) => {
@@ -50,7 +51,7 @@ const checkout = async (req, res) => {
     console.log("Creating Cashfree order with data:", orderData);
 
     // ✅ Correct Function Call
-    const orderResponse = await cashfree.PG.createOrder(orderData);
+   const orderResponse = await cashfree.PG.orders.create(orderData);
 
     console.log("Cashfree response:", orderResponse);
 
