@@ -2,30 +2,24 @@ const cashfree = require("cashfree-pg");
 const Order = require("../models/orderModel");
 require("dotenv").config();
 
-// Configure Cashfree
-cashfree.XClientId = process.env.CASHFREE_APP_ID;
-cashfree.XClientSecret = process.env.CASHFREE_SECRET_KEY;
-cashfree.XEnvironment = "PROD";
+// ✅ Correctly Initialize Cashfree SDK
+cashfree.PG.init({
+  appId: process.env.CASHFREE_APP_ID,
+  secretKey: process.env.CASHFREE_SECRET_KEY,
+  environment: "PRODUCTION", // Use "SANDBOX" for testing
+});
 
-// Create Order and Initialize Payment
+// ✅ Checkout: Create Order and Initialize Payment
 const checkout = async (req, res) => {
   try {
-    const { 
-      totalPrice,
-      totalPriceAfterDiscount,
-      orderItems,
-      shippingInfo 
-    } = req.body;
+    const { totalPrice, totalPriceAfterDiscount, orderItems, shippingInfo } = req.body;
 
     // Validate required fields
     if (!totalPrice || !orderItems || !shippingInfo) {
-      return res.status(400).json({
-        success: false,
-        message: "Missing required fields"
-      });
+      return res.status(400).json({ success: false, message: "Missing required fields" });
     }
 
-    // First create the order in your database
+    // Create Order in Database
     const newOrder = await Order.create({
       user: req.user._id,
       orderItems,
@@ -33,12 +27,10 @@ const checkout = async (req, res) => {
       totalPriceAfterDiscount: totalPriceAfterDiscount || totalPrice,
       shippingInfo,
       orderStatus: "Pending",
-      paymentInfo: {
-        paymentStatus: "PENDING"
-      }
+      paymentInfo: { paymentStatus: "PENDING" }
     });
 
-    // Create Cashfree order
+    // Create Cashfree Order
     const orderData = {
       order_amount: totalPriceAfterDiscount || totalPrice,
       order_currency: "INR",
@@ -52,19 +44,18 @@ const checkout = async (req, res) => {
         return_url: `${process.env.FRONTEND_URL}/order-success/{order_id}`,
         notify_url: `${process.env.BACKEND_URL}/api/user/webhook`,
       },
-      order_tags: {
-        type: "ecommerce",
-      },
+      order_tags: { type: "ecommerce" },
     };
 
     console.log("Creating Cashfree order with data:", orderData);
 
-   const orderResponse = await cashfree.pg.orders.create(orderData);
+    // ✅ Correct Function Call
+    const orderResponse = await cashfree.PG.createOrder(orderData);
 
     console.log("Cashfree response:", orderResponse);
 
-    if (orderResponse.status === "ACTIVE") {
-      // Update order with payment link and Cashfree order ID
+    if (orderResponse.order_status === "ACTIVE") {
+      // Update order with payment details
       await Order.findByIdAndUpdate(
         newOrder._id,
         {
@@ -86,40 +77,26 @@ const checkout = async (req, res) => {
         },
       });
     } else {
-      // If order creation fails, delete the order from your database
       await Order.findByIdAndDelete(newOrder._id);
-      res.status(400).json({ 
-        success: false, 
-        message: "Payment initialization failed",
-        error: orderResponse.message
-      });
+      res.status(400).json({ success: false, message: "Payment initialization failed", error: orderResponse.message });
     }
   } catch (error) {
     console.error("Cashfree Error:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Error processing payment",
-      error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    });
+    res.status(500).json({ success: false, message: "Error processing payment", error: error.message });
   }
 };
 
-// Payment Verification
+// ✅ Payment Verification
 const paymentVerification = async (req, res) => {
   try {
-    const { orderId, paymentId, txStatus } = req.body;
+    const { orderId, paymentId } = req.body;
 
     if (!orderId || !paymentId) {
-      return res.status(400).json({
-        success: false,
-        message: "Missing required fields"
-      });
+      return res.status(400).json({ success: false, message: "Missing required fields" });
     }
 
-    const orderStatus = await cashfree.PGFetchOrder({
-      order_id: orderId,
-    });
+    // ✅ Correct Function Call
+    const orderStatus = await cashfree.PG.getOrder({ order_id: orderId });
 
     if (orderStatus.order_status === "PAID") {
       await Order.findByIdAndUpdate(
@@ -135,10 +112,7 @@ const paymentVerification = async (req, res) => {
         { new: true }
       );
 
-      res.json({
-        success: true,
-        message: "Payment verified successfully",
-      });
+      res.json({ success: true, message: "Payment verified successfully" });
     } else {
       await Order.findByIdAndUpdate(
         orderId,
@@ -153,29 +127,22 @@ const paymentVerification = async (req, res) => {
         { new: true }
       );
 
-      res.status(400).json({
-        success: false,
-        message: "Payment verification failed",
-      });
+      res.status(400).json({ success: false, message: "Payment verification failed" });
     }
   } catch (error) {
     console.error("Payment Verification Error:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Error verifying payment",
-      error: error.message 
-    });
+    res.status(500).json({ success: false, message: "Error verifying payment", error: error.message });
   }
 };
 
-// Webhook handler
+// ✅ Webhook Handler
 const webhookHandler = async (req, res) => {
   try {
     const webhookData = req.body;
     const signature = req.headers["x-webhook-signature"];
 
-    // Verify webhook signature
-    const isValid = cashfree.PGVerifyWebhookSignature(webhookData, signature, process.env.CASHFREE_SECRET_KEY);
+    // ✅ Correct Function Call
+    const isValid = cashfree.PG.validateWebhook({ webhookData, xSignature: signature });
 
     if (!isValid) {
       return res.status(400).json({ success: false, message: "Invalid signature" });
@@ -187,7 +154,7 @@ const webhookHandler = async (req, res) => {
         {
           paymentInfo: {
             paymentId: webhookData.payment_id,
-            status: "Success",
+            paymentStatus: "SUCCESS",
           },
           orderStatus: "Processing",
         },
@@ -202,6 +169,7 @@ const webhookHandler = async (req, res) => {
   }
 };
 
+// ✅ Export the functions
 module.exports = {
   checkout,
   paymentVerification,
