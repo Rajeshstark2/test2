@@ -59,7 +59,7 @@ const checkout = async (req, res) => {
 
     console.log("Creating Cashfree order with data:", orderData);
 
-    const orderResponse = await cashfree.PGCreateOrder(orderData);
+   const orderResponse = await cashfree.pg.orders.create(orderData);
 
     console.log("Cashfree response:", orderResponse);
 
