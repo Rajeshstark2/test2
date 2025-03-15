@@ -9,8 +9,6 @@ const cashfree = new Cashfree({
   environment: "PRODUCTION", // Use "SANDBOX" for testing
 });
 
-
-
 // ✅ Checkout: Create Order and Initialize Payment
 const checkout = async (req, res) => {
   try {
@@ -52,8 +50,7 @@ const checkout = async (req, res) => {
     console.log("Creating Cashfree order with data:", orderData);
 
     // ✅ Correct Function Call
-  const orderResponse = await cashfree.pg.orders.create(orderData);
-
+    const orderResponse = await cashfree.pg.orders.create(orderData);
 
     console.log("Cashfree response:", orderResponse);
 
@@ -80,6 +77,7 @@ const checkout = async (req, res) => {
         },
       });
     } else {
+      // If order creation fails, delete the order from the database
       await Order.findByIdAndDelete(newOrder._id);
       res.status(400).json({ success: false, message: "Payment initialization failed", error: orderResponse.message });
     }
