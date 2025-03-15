@@ -18,7 +18,6 @@ const uploadRouter = require("./routes/uploadRoute");
 const cookieParser = require("cookie-parser");
 const morgan = require("morgan");
 const cors = require("cors");
-const paymentRoute = require("./routes/paymentRoute");
 
 dbConnect();
 app.use(morgan("dev"));
