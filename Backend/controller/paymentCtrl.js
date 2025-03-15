@@ -31,61 +31,64 @@ const checkout = async (req, res) => {
     });
 
     // Create Cashfree Order
-    const orderData = {
-      order_amount: totalPriceAfterDiscount || totalPrice,
-      order_currency: "INR",
-      order_id: newOrder._id.toString(),
-      customer_details: {
-        customer_id: req.user._id.toString(),
-        customer_email: req.user.email,
-        customer_phone: shippingInfo.mobile || "",
-      },
-      order_meta: {
-        return_url: `${process.env.FRONTEND_URL}/order-success/{order_id}`,
-        notify_url: `${process.env.BACKEND_URL}/api/user/webhook`,
-      },
-      order_tags: { type: "ecommerce" },
-    };
+ const orderData = {
+  order_amount: totalPriceAfterDiscount || totalPrice,
+  order_currency: "INR",
+  order_id: newOrder._id.toString(),
+  customer_details: {
+    customer_id: req.user._id.toString(),
+    customer_email: req.user.email,
+    customer_phone: shippingInfo.mobile || "",
+  },
+  order_meta: {
+    return_url: `${process.env.FRONTEND_URL}/order-success/{order_id}`,
+    notify_url: `${process.env.BACKEND_URL}/api/user/webhook`,
+  },
+  order_tags: { type: "ecommerce" },
+};
 
     console.log("Creating Cashfree order with data:", orderData);
 
     // ✅ Correct Function Call
-    const orderResponse = await cashfree.pg.orders.create(orderData);
+ const orderResponse = await cashfree.pg.orders.create(orderData);
 
-    console.log("Cashfree response:", orderResponse);
+if (!orderResponse) {
+  throw new Error("Cashfree API returned an undefined response");
+}
 
-    if (orderResponse.order_status === "ACTIVE") {
-      // Update order with payment details
-      await Order.findByIdAndUpdate(
-        newOrder._id,
-        {
-          paymentInfo: {
-            paymentStatus: "PENDING",
-            cashfreeOrderId: orderResponse.order_id,
-            paymentLink: orderResponse.payment_link
-          }
-        },
-        { new: true }
-      );
+console.log("Cashfree Response:", orderResponse);
 
-      res.json({
-        success: true,
-        order: {
-          ...orderResponse,
-          orderId: newOrder._id,
-          payment_link: orderResponse.payment_link
-        },
-      });
-    } else {
-      // If order creation fails, delete the order from the database
-      await Order.findByIdAndDelete(newOrder._id);
-      res.status(400).json({ success: false, message: "Payment initialization failed", error: orderResponse.message });
-    }
-  } catch (error) {
-    console.error("Cashfree Error:", error);
-    res.status(500).json({ success: false, message: "Error processing payment", error: error.message });
-  }
-};
+if (orderResponse.order_status === "ACTIVE") {
+  // Update order with payment details
+  await Order.findByIdAndUpdate(
+    newOrder._id,
+    {
+      paymentInfo: {
+        paymentStatus: "PENDING",
+        cashfreeOrderId: orderResponse.order_id,
+        paymentLink: orderResponse.payment_link,
+      },
+    },
+    { new: true }
+  );
+
+  res.json({
+    success: true,
+    order: {
+      ...orderResponse,
+      orderId: newOrder._id,
+      payment_link: orderResponse.payment_link,
+    },
+  });
+} else {
+  // If order creation fails, delete the order from the database
+  await Order.findByIdAndDelete(newOrder._id);
+  res.status(400).json({
+    success: false,
+    message: "Payment initialization failed",
+    error: orderResponse.message || "Unknown error",
+  });
+}
 
 // ✅ Payment Verification
 const paymentVerification = async (req, res) => {
