@@ -38,18 +38,13 @@ var orderSchema = new mongoose.Schema(
       },
     },
     paymentInfo: {
-      cashfreeOrderId: {
+      order_id: { // Changed from razorpayOrderId to order_id (Cashfree's order ID)
         type: String,
-        required: false,
+        required: true,
       },
-      cashfreePaymentId: {
+      payment_id: { // Changed from razorpayPaymentId to payment_id (Cashfree's payment ID)
         type: String,
-        required: false,
-      },
-      paymentStatus: {
-        type: String,
-        enum: ["SUCCESS", "FAILED", "PENDING"],
-        default: "PENDING",
+        required: true,
       },
     },
     orderItems: [
