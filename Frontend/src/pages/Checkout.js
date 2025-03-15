@@ -13,8 +13,6 @@ import {
   getUserCart,
   resetState,
 } from "../features/user/userSlice";
-import { toast } from "react-toastify";
-import { base_url } from "../utils/axiosConfig";
 
 let shippingSchema = yup.object({
   firstname: yup.string().required("First Name is Required"),
@@ -23,7 +21,7 @@ let shippingSchema = yup.object({
   state: yup.string().required("State is Required"),
   city: yup.string().required("City is Required"),
   country: yup.string().required("Country is Required"),
-  pincode: yup.number().required("Pincode No is Required").positive().integer(),
+  pincode: yup.number("Pincode No is Required").required().positive().integer(),
 });
 
 const Checkout = () => {
@@ -32,17 +30,18 @@ const Checkout = () => {
   const authState = useSelector((state) => state?.auth);
   const [totalAmount, setTotalAmount] = useState(null);
   const [shippingInfo, setShippingInfo] = useState(null);
+  const [paymentInfo, setPaymentInfo] = useState({
+    paymentId: "",
+    orderId: "",
+  });
   const navigate = useNavigate();
-  const [cartProductState, setCartProductState] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const user = authState?.user;
 
   useEffect(() => {
     let sum = 0;
     for (let index = 0; index < cartState?.length; index++) {
       sum = sum + Number(cartState[index].quantity) * cartState[index].price;
+      setTotalAmount(sum);
     }
-    setTotalAmount(sum);
   }, [cartState]);
 
   const getTokenFromLocalStorage = localStorage.getItem("customer")
@@ -60,7 +59,7 @@ const Checkout = () => {
 
   useEffect(() => {
     dispatch(getUserCart(config2));
-  }, [dispatch]);
+  }, []);
 
   useEffect(() => {
     if (
@@ -69,20 +68,9 @@ const Checkout = () => {
     ) {
       navigate("/my-orders");
     }
-  }, [authState, navigate]);
+  }, [authState]);
 
-  useEffect(() => {
-    let items = [];
-    for (let index = 0; index < cartState?.length; index++) {
-      items.push({
-        product: cartState[index].productId._id,
-        quantity: cartState[index].quantity,
-        color: cartState[index].color._id,
-        price: cartState[index].price,
-      });
-    }
-    setCartProductState(items);
-  }, [cartState]);
+  const [cartProductState, setCartProductState] = useState([]);
 
   const formik = useFormik({
     initialValues: {
@@ -99,94 +87,101 @@ const Checkout = () => {
     onSubmit: (values) => {
       setShippingInfo(values);
       localStorage.setItem("address", JSON.stringify(values));
-      checkOutHandler(values);
+      setTimeout(() => {
+        checkOutHandler();
+      }, 300);
     },
   });
 
-  const checkOutHandler = async (shippingDetails) => {
-    setIsLoading(true);
-    try {
-      const token = getTokenFromLocalStorage?.token;
-      
-      if (!token) {
-        toast.error("Please login first");
-        navigate("/login");
-        return;
-      }
-
-      const config = {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+  const loadScript = (src) => {
+    return new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = src;
+      script.onload = () => {
+        resolve(true);
       };
-
-      // Create order data
-      const orderData = {
-        totalPrice: totalAmount + 50,
-        totalPriceAfterDiscount: totalAmount + 50,
-        orderItems: cartProductState,
-        shippingInfo: {
-          ...shippingDetails,
-          mobile: user?.mobile || shippingDetails.mobile || "",
-          email: user?.email || "",
-          name: `${shippingDetails.firstname} ${shippingDetails.lastname}`
-        }
+      script.onerror = () => {
+        resolve(false);
       };
+      document.body.appendChild(script);
+    });
+  };
 
-      console.log("Sending order data:", orderData);
-
-      // Initialize payment using Cashfree
-      const response = await axios.post(
-        "https://test2-60yt.onrender.com/api/user/order/checkout",
-        orderData,
-        config
-      );
-
-      console.log("Payment response:", response.data);
-
-      if (!response.data.success) {
-        toast.error(response.data.message || "Payment initialization failed");
-        return;
-      }
-
-      // If payment initialization is successful
-      const { order } = response.data;
-      
-      if (order.payment_link) {
-        // Redirect to Cashfree payment page
-        window.location.href = order.payment_link;
-      } else {
-        toast.error("Payment link not received");
-      }
-
-    } catch (error) {
-      console.error("Error in Checkout:", error);
-      
-      // More detailed error handling
-      if (error.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
-        console.error("Error response:", error.response.data);
-        console.error("Error status:", error.response.status);
-        console.error("Error headers:", error.response.headers);
-        
-        const errorMessage = error.response.data.message || 
-                           error.response.data.error || 
-                           "Error processing order!";
-        toast.error(errorMessage);
-      } else if (error.request) {
-        // The request was made but no response was received
-        console.error("No response received:", error.request);
-        toast.error("No response from server. Please try again later.");
-      } else {
-        // Something happened in setting up the request that triggered an Error
-        console.error("Error setting up request:", error.message);
-        toast.error("Error setting up request. Please try again.");
-      }
-    } finally {
-      setIsLoading(false);
+  useEffect(() => {
+    let items = [];
+    for (let index = 0; index < cartState?.length; index++) {
+      items.push({
+        product: cartState[index].productId._id,
+        quantity: cartState[index].quantity,
+        color: cartState[index].color._id,
+        price: cartState[index].price,
+      });
     }
+    setCartProductState(items);
+  }, []);
+
+  const checkOutHandler = async () => {
+    const res = await loadScript("https://sdk.cashfree.com/js/v3/cashfree.js");
+
+    if (!res) {
+      alert("Cashfree SDK failed to load");
+      return;
+    }
+
+    const result = await axios.post(
+      "https://test2-60yt.onrender.com/api/user/order/checkout",
+      { amount: totalAmount + 50 },
+      config
+    );
+
+    if (!result) {
+      alert("Something went wrong");
+      return;
+    }
+
+    const { order_id, order_amount, order_currency } = result.data.order;
+
+    const cashfree = new window.Cashfree({
+      mode: "sandbox", // or 'production'
+    });
+
+    cashfree.checkout({
+      paymentSessionId: order_id,
+      returnUrl: "https://yourwebsite.com/return-url", // Replace with your return URL
+      renderFailure: function (data) {
+        alert("Payment failed");
+      },
+      renderSuccess: function (data) {
+        const paymentData = {
+          orderId: order_id,
+          paymentId: data.paymentId,
+        };
+
+        axios
+          .post(
+            "https://test2-60yt.onrender.com/api/user/order/paymentVerification",
+            paymentData,
+            config
+          )
+          .then((response) => {
+            dispatch(
+              createAnOrder({
+                totalPrice: totalAmount,
+                totalPriceAfterDiscount: totalAmount,
+                orderItems: cartProductState,
+                paymentInfo: response.data.paymentDetails,
+                shippingInfo: JSON.parse(localStorage.getItem("address")),
+              })
+            );
+            dispatch(deleteUserCart(config2));
+            localStorage.removeItem("address");
+            dispatch(resetState());
+          })
+          .catch((error) => {
+            alert("Payment verification failed");
+          });
+      },
+    });
   };
 
   return (
@@ -359,12 +354,11 @@ const Checkout = () => {
                       <BiArrowBack className="me-2" />
                       Return to Cart
                     </Link>
-                    <button 
-                      className={`button ${isLoading ? 'loading' : ''}`} 
-                      type="submit"
-                      disabled={isLoading}
-                    >
-                      {isLoading ? "Processing..." : "Place Order"}
+                    <Link to="/cart" className="button">
+                      Continue to Shipping
+                    </Link>
+                    <button className="button" type="submit">
+                      Place Order
                     </button>
                   </div>
                 </div>
