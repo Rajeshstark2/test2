@@ -122,13 +122,14 @@ const Checkout = () => {
 
   const checkOutHandler = async () => {
     const res = await loadScript(
-      "https://api.cashfree.com/pg"
+     "https://sdk.cashfree.com/js/v3/cashfree.js"
     );
 
     if (!res) {
       alert("cashfree SDK faild to Load");
       return;
     }
+     console.log("Cashfree SDK loaded successfully");
     const result = await axios.post(
       "https://test2-60yt.onrender.com/api/user/order/checkout",
       { amount: totalAmount + 50 },
