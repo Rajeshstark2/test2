@@ -20,7 +20,7 @@ const checkout = async (req, res) => {
         customer_phone: "9876543210", // Replace with customer phone
       },
       order_meta: {
-        return_url: "https://yourwebsite.com/return", // Replace with your return URL
+        return_url: "https://test2-1-t9x9.onrender.com/", // Replace with your return URL
       },
     });
 
