@@ -143,11 +143,11 @@ const Checkout = () => {
     const { amount, id: order_id, currency } = result.data.order;
 
     const options = {
-      key: "rzp_test_fdOA5JRqNiD2Tb", // Enter the Key ID generated from the Dashboard
+      key: "cfsk_ma_prod_e9b9aa6f6b77f4fd782e53b02b7313bc_e7518d81", // Enter the Key ID generated from the Dashboard
       amount: amount,
       currency: currency,
-      name: "Cart's corner",
-      description: "Test Transaction",
+      name: "PRABANJAM PGM",
+      description: " Transaction",
 
       order_id: order_id,
       handler: async function (response) {
