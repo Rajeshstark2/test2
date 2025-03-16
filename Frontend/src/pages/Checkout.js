@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { BiArrowBack } from "react-icons/bi";
 import Container from "../components/Container";
 import { useDispatch, useSelector } from "react-redux";
 import { useFormik } from "formik";
@@ -14,6 +13,7 @@ import {
   resetState,
 } from "../features/user/userSlice";
 
+// Validation Schema
 const shippingSchema = yup.object({
   firstname: yup.string().required("First Name is Required"),
   lastname: yup.string().required("Last Name is Required"),
@@ -32,17 +32,18 @@ const Checkout = () => {
 
   const [totalAmount, setTotalAmount] = useState(0);
   const [cartProductState, setCartProductState] = useState([]);
+  const [paymentMethod, setPaymentMethod] = useState("online");
 
   useEffect(() => {
     let sum = 0;
-    cartState?.forEach(item => {
+    cartState?.forEach((item) => {
       sum += item.quantity * item.price;
     });
     setTotalAmount(sum);
   }, [cartState]);
 
   useEffect(() => {
-    let items = cartState?.map(item => ({
+    let items = cartState?.map((item) => ({
       product: item.productId._id,
       quantity: item.quantity,
       color: item.color._id,
@@ -75,10 +76,15 @@ const Checkout = () => {
     validationSchema: shippingSchema,
     onSubmit: (values) => {
       localStorage.setItem("address", JSON.stringify(values));
-      checkOutHandler();
+      if (paymentMethod === "online") {
+        checkOutHandler(); // Razorpay payment
+      } else {
+        cashOnDeliveryHandler(); // COD
+      }
     },
   });
 
+  // Razorpay Online Payment
   const checkOutHandler = async () => {
     const result = await axios.post(
       "https://test2-60yt.onrender.com/api/user/order/checkout",
@@ -126,6 +132,21 @@ const Checkout = () => {
     paymentObject.open();
   };
 
+  // Cash on Delivery (COD) Handler
+  const cashOnDeliveryHandler = async () => {
+    dispatch(createAnOrder({
+      totalPrice: totalAmount,
+      totalPriceAfterDiscount: totalAmount,
+      orderItems: cartProductState,
+      paymentInfo: { paymentMethod: "COD" },
+      shippingInfo: JSON.parse(localStorage.getItem("address")),
+    }));
+    dispatch(deleteUserCart());
+    localStorage.removeItem("address");
+    dispatch(resetState());
+    navigate("/my-orders");
+  };
+
   return (
     <Container class1="checkout-wrapper py-5 home-wrapper-2">
       <div className="row">
@@ -139,6 +160,18 @@ const Checkout = () => {
               <input type="text" placeholder="Address" name="address" {...formik.getFieldProps("address")} />
               <input type="text" placeholder="City" name="city" {...formik.getFieldProps("city")} />
               <input type="text" placeholder="Pincode" name="pincode" {...formik.getFieldProps("pincode")} />
+
+              {/* Payment Method Selection */}
+              <h4>Select Payment Method:</h4>
+              <div>
+                <input type="radio" id="online" name="paymentMethod" value="online" defaultChecked onChange={() => setPaymentMethod("online")} />
+                <label htmlFor="online">Online Payment</label>
+              </div>
+              <div>
+                <input type="radio" id="cod" name="paymentMethod" value="cod" onChange={() => setPaymentMethod("cod")} />
+                <label htmlFor="cod">Cash on Delivery</label>
+              </div>
+
               <button type="submit" className="button">Place Order</button>
             </form>
           </div>
@@ -152,4 +185,3 @@ const Checkout = () => {
 };
 
 export default Checkout;
-
