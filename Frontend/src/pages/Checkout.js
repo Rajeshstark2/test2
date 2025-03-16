@@ -122,7 +122,7 @@ const Checkout = () => {
 
   const checkOutHandler = async () => {
     const res = await loadScript(
-      "https://checkout.razorpay.com/v1/checkout.js"
+      "https://api.cashfree.com/pg/checkout.js"
     );
 
     if (!res) {
