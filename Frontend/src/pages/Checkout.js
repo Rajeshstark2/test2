@@ -122,11 +122,11 @@ const Checkout = () => {
 
   const checkOutHandler = async () => {
     const res = await loadScript(
-      "https://api.cashfree.com/pg/checkout.js"
+      "https://api.cashfree.com/pg"
     );
 
     if (!res) {
-      alert("Razorpay SDK faild to Load");
+      alert("cashfree SDK faild to Load");
       return;
     }
     const result = await axios.post(
