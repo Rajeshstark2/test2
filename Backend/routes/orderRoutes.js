@@ -1,5 +1,5 @@
 const express = require("express");
-const { placeCODOrder } = require("../controllers/orderCtrl");
+const { placeCODOrder } = require("../controller/orderCtrl");
 
 const router = express.Router();
 
