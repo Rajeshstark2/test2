@@ -1,8 +1,8 @@
-const { Cashfree } = require("@cashfreepayments/cashfree-sdk");
-
-// Initialize Cashfree
-const  key_id = process.env.CASHFREE_API_KEY;
-const key_secret = process.env.CASHFREE_API_SECRET;
+const Razorpay = require("razorpay");
+const instance = new Razorpay({
+  key_id: "rzp_test_HSSeDI22muUrLR",
+  key_secret: "sRO0YkBxvgMg0PvWHJN16Uf7",
+});
 
 const checkout = async (req, res) => {
   const { amount } = req.body;
@@ -29,4 +29,3 @@ module.exports = {
   checkout,
   paymentVerification,
 };
-
