@@ -143,7 +143,7 @@ const Checkout = () => {
     const { amount, id: order_id, currency } = result.data.order;
 
     const options = {
-      key: "cfsk_ma_prod_e9b9aa6f6b77f4fd782e53b02b7313bc_e7518d81", // Enter the Key ID generated from the Dashboard
+      key: "920442d64d234896cf1df8f22a244029", // Enter the Key ID generated from the Dashboard
       amount: amount,
       currency: currency,
       name: "PRABANJAM PGM",
