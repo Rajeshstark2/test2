@@ -11,7 +11,7 @@ const checkout = async (req, res) => {
     amount: amount * 50,
     currency: "INR",
   };
-  const order = await instance.orders.create(option);
+  const order = awaitCashfree.PGCreateOrder(option);
   res.json({
     success: true,
     order,
