@@ -38,11 +38,11 @@ var orderSchema = new mongoose.Schema(
       },
     },
     paymentInfo: {
-      order_id: { // Changed from razorpayOrderId to order_id (Cashfree's order ID)
+      razorpayOrderId: {
         type: String,
         required: true,
       },
-      payment_id: { // Changed from razorpayPaymentId to payment_id (Cashfree's payment ID)
+      razorpayPaymentId: {
         type: String,
         required: true,
       },
@@ -95,5 +95,5 @@ var orderSchema = new mongoose.Schema(
   }
 );
 
-// Export the model
+//Export the model
 module.exports = mongoose.model("Order", orderSchema);
