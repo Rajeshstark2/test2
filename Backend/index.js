@@ -21,13 +21,15 @@ const cors = require("cors");
 
 dbConnect();
 app.use(morgan("dev"));
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "https://test2-1-t9x9.onrender.com");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.header("Access-Control-Allow-Credentials", "true");
-  next();
-});
+const cors = require("cors");
+app.use(
+  cors({
+    origin: "https://test2-1-t9x9.onrender.com", // Allow frontend domain
+    methods: ["GET", "POST", "PUT", "DELETE"], // Allowed methods
+    allowedHeaders: ["Content-Type", "Authorization"], // Allowed headers
+    credentials: true, // Allow cookies, authentication headers
+  })
+);
 
 
 app.use(bodyParser.json());
