@@ -14,39 +14,52 @@ import {
   resetState,
 } from "../features/user/userSlice";
 
-let shippingSchema = yup.object({
+const shippingSchema = yup.object({
   firstname: yup.string().required("First Name is Required"),
   lastname: yup.string().required("Last Name is Required"),
   address: yup.string().required("Address Details are Required"),
   state: yup.string().required("State is Required"),
   city: yup.string().required("City is Required"),
   country: yup.string().required("Country is Required"),
-  pincode: yup.number().required().positive().integer(),
+  pincode: yup.number().required("Pincode is Required").positive().integer(),
 });
 
 const Checkout = () => {
   const dispatch = useDispatch();
   const cartState = useSelector((state) => state?.auth?.cartProducts);
   const authState = useSelector((state) => state?.auth);
-  const [totalAmount, setTotalAmount] = useState(0);
-  const [shippingInfo, setShippingInfo] = useState(null);
-  const [paymentMethod, setPaymentMethod] = useState("online"); // Default to Online Payment
   const navigate = useNavigate();
 
+  const [totalAmount, setTotalAmount] = useState(0);
+  const [cartProductState, setCartProductState] = useState([]);
+
   useEffect(() => {
-    let sum = cartState?.reduce((acc, item) => acc + item.quantity * item.price, 0) || 0;
+    let sum = 0;
+    cartState?.forEach(item => {
+      sum += item.quantity * item.price;
+    });
     setTotalAmount(sum);
   }, [cartState]);
 
   useEffect(() => {
-    dispatch(getUserCart());
-  }, []);
+    let items = cartState?.map(item => ({
+      product: item.productId._id,
+      quantity: item.quantity,
+      color: item.color._id,
+      price: item.price,
+    }));
+    setCartProductState(items);
+  }, [cartState]);
 
   useEffect(() => {
-    if (authState?.orderedProduct?.order !== null && authState?.orderedProduct?.success) {
+    if (authState?.orderedProduct?.order !== null && authState?.orderedProduct?.success === true) {
       navigate("/my-orders");
     }
   }, [authState]);
+
+  useEffect(() => {
+    dispatch(getUserCart());
+  }, []);
 
   const formik = useFormik({
     initialValues: {
@@ -61,98 +74,54 @@ const Checkout = () => {
     },
     validationSchema: shippingSchema,
     onSubmit: (values) => {
-      setShippingInfo(values);
       localStorage.setItem("address", JSON.stringify(values));
-      setTimeout(() => {
-        if (paymentMethod === "cod") {
-          placeOrderCOD(); // Place COD order
-        } else {
-          checkOutHandler(); // Process Razorpay Payment
-        }
-      }, 300);
+      checkOutHandler();
     },
   });
 
-  const placeOrderCOD = async () => {
-    const orderData = {
-      totalPrice: totalAmount + 50,
-      totalPriceAfterDiscount: totalAmount + 50,
-      orderItems: cartState.map((item) => ({
-        product: item.productId._id,
-        quantity: item.quantity,
-        color: item.color._id,
-        price: item.price,
-      })),
-      paymentInfo: { method: "COD", status: "Pending" }, // Payment info for COD
-      shippingInfo: JSON.parse(localStorage.getItem("address")),
-    };
-
-    dispatch(createAnOrder(orderData));
-    dispatch(deleteUserCart());
-    localStorage.removeItem("address");
-    dispatch(resetState());
-  };
-
   const checkOutHandler = async () => {
-    const res = await axios.post(
+    const result = await axios.post(
       "https://test2-60yt.onrender.com/api/user/order/checkout",
       { amount: totalAmount + 50 },
       config
     );
 
-    if (!res) {
-      alert("Something Went Wrong");
+    if (!result) {
+      alert("Something went wrong");
       return;
     }
 
-    const { amount, id: order_id, currency } = res.data.order;
     const options = {
       key: "rzp_test_fdOA5JRqNiD2Tb",
-      amount,
-      currency,
+      amount: result.data.order.amount,
+      currency: result.data.order.currency,
       name: "Cart's Corner",
       description: "Test Transaction",
-      order_id,
+      order_id: result.data.order.id,
       handler: async function (response) {
         const paymentData = {
-          orderCreationId: order_id,
+          orderCreationId: result.data.order.id,
           razorpayPaymentId: response.razorpay_payment_id,
           razorpayOrderId: response.razorpay_order_id,
         };
-
-        const result = await axios.post(
+        const verifyRes = await axios.post(
           "https://test2-60yt.onrender.com/api/user/order/paymentVerification",
           paymentData,
           config
         );
-
-        dispatch(
-          createAnOrder({
-            totalPrice: totalAmount,
-            totalPriceAfterDiscount: totalAmount,
-            orderItems: cartState.map((item) => ({
-              product: item.productId._id,
-              quantity: item.quantity,
-              color: item.color._id,
-              price: item.price,
-            })),
-            paymentInfo: result.data,
-            shippingInfo: JSON.parse(localStorage.getItem("address")),
-          })
-        );
-
+        dispatch(createAnOrder({
+          totalPrice: totalAmount,
+          totalPriceAfterDiscount: totalAmount,
+          orderItems: cartProductState,
+          paymentInfo: verifyRes.data,
+          shippingInfo: JSON.parse(localStorage.getItem("address")),
+        }));
         dispatch(deleteUserCart());
         localStorage.removeItem("address");
         dispatch(resetState());
       },
-      prefill: {
-        name: "prabanjam",
-        email: "prabanjam.original@gmail.com",
-        contact: "+91 97918 46885",
-      },
       theme: { color: "#61dafb" },
     };
-
     const paymentObject = new window.Razorpay(options);
     paymentObject.open();
   };
@@ -164,40 +133,18 @@ const Checkout = () => {
           <div className="checkout-left-data">
             <h3 className="website-name">Cart Corner</h3>
             <h4 className="mb-3">Shipping Address</h4>
-            <form onSubmit={formik.handleSubmit} className="d-flex gap-15 flex-wrap">
-              {/* Form Fields */}
-              <div className="w-100">
-                <label className="mb-2">Select Payment Method:</label>
-                <div className="d-flex gap-3">
-                  <label>
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="online"
-                      checked={paymentMethod === "online"}
-                      onChange={() => setPaymentMethod("online")}
-                    />
-                    Online Payment
-                  </label>
-                  <label>
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="cod"
-                      checked={paymentMethod === "cod"}
-                      onChange={() => setPaymentMethod("cod")}
-                    />
-                    Cash on Delivery
-                  </label>
-                </div>
-              </div>
-              <div className="w-100">
-                <button className="button" type="submit">
-                  {paymentMethod === "cod" ? "Place COD Order" : "Proceed to Payment"}
-                </button>
-              </div>
+            <form onSubmit={formik.handleSubmit} className="d-flex flex-wrap">
+              <input type="text" placeholder="First Name" name="firstname" {...formik.getFieldProps("firstname")} />
+              <input type="text" placeholder="Last Name" name="lastname" {...formik.getFieldProps("lastname")} />
+              <input type="text" placeholder="Address" name="address" {...formik.getFieldProps("address")} />
+              <input type="text" placeholder="City" name="city" {...formik.getFieldProps("city")} />
+              <input type="text" placeholder="Pincode" name="pincode" {...formik.getFieldProps("pincode")} />
+              <button type="submit" className="button">Place Order</button>
             </form>
           </div>
+        </div>
+        <div className="col-5">
+          <h4 className="total">Total: Rs. {totalAmount + 50}</h4>
         </div>
       </div>
     </Container>
@@ -205,3 +152,4 @@ const Checkout = () => {
 };
 
 export default Checkout;
+
