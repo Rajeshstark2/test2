@@ -59,7 +59,7 @@ const Checkout = () => {
   };
 
   useEffect(() => {
-    dispatch(getUserCart(config2));
+    dispatch(getUserCart());
   }, []);
 
   useEffect(() => {
@@ -196,23 +196,34 @@ const Checkout = () => {
 
   const handleCashOnDelivery = async () => {
     try {
+      const shippingAddress = JSON.parse(localStorage.getItem("address"));
       const orderData = {
-        shippingInfo: JSON.parse(localStorage.getItem("address")),
+        shippingInfo: {
+          firstname: shippingAddress.firstname,
+          lastname: shippingAddress.lastname,
+          address: shippingAddress.address,
+          city: shippingAddress.city,
+          state: shippingAddress.state,
+          country: shippingAddress.country,
+          pincode: shippingAddress.pincode,
+          other: shippingAddress.other || ""
+        },
         orderItems: cartProductState,
-        totalPrice: totalAmount,
-        totalPriceAfterDiscount: totalAmount,
+        totalPrice: totalAmount + 50, // Including shipping cost
+        totalPriceAfterDiscount: totalAmount + 50,
         paymentInfo: {
-          razorpayOrderId: "COD-" + Date.now(),
-          razorpayPaymentId: "COD-" + Date.now(),
+          razorpayOrderId: `COD-${Date.now()}`,
+          razorpayPaymentId: `COD-${Date.now()}`,
           paymentMethod: "COD",
           paymentStatus: "Pending"
         }
       };
 
-      dispatch(createAnOrder(orderData));
-      dispatch(deleteUserCart(config2));
+      await dispatch(createAnOrder(orderData)).unwrap();
+      await dispatch(deleteUserCart(config2));
       localStorage.removeItem("address");
       dispatch(resetState());
+      navigate("/my-orders");
     } catch (error) {
       console.error("Error processing COD order:", error);
     }
@@ -507,4 +518,3 @@ const Checkout = () => {
 };
 
 export default Checkout;
-
