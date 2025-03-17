@@ -1,67 +1,116 @@
-const Order = require("../models/orderModel");
+const mongoose = require("mongoose"); // Erase if already required
 
-// ✅ Handle COD Order
-const placeCODOrder = async (req, res) => {
-  try {
-    const { shippingInfo, orderItems, totalPrice, totalPriceAfterDiscount } = req.body;
-
-    if (!shippingInfo || !orderItems || !totalPrice) {
-      return res.status(400).json({ success: false, message: "Missing order details!" });
-    }
-
-    const newOrder = new Order({
-      user: req.user._id, // Get user from auth middleware
-      shippingInfo,
-      orderItems,
-      totalPrice,
-      totalPriceAfterDiscount: totalPriceAfterDiscount || totalPrice,
-      paymentInfo: {
-        razorpayOrderId: "COD-" + Date.now(),
-        razorpayPaymentId: "COD-" + Date.now(),
-        paymentMethod: "COD",
-        paymentStatus: "Pending"
+// Declare the Schema of the Mongo model
+var orderSchema = new mongoose.Schema(
+  {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    shippingInfo: {
+      firstname: {
+        type: String,
+        required: true,
       },
-      orderStatus: "Processing",
-    });
-
-    await newOrder.save();
-
-    res.json({ 
-      success: true, 
-      message: "COD order placed successfully!", 
-      order: newOrder 
-    });
-  } catch (error) {
-    console.error("Error in placeCODOrder:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Error placing COD order",
-      error: error.message 
-    });
+      lastname: {
+        type: String,
+        required: true,
+      },
+      address: {
+        type: String,
+        required: true,
+      },
+      city: {
+        type: String,
+        required: true,
+      },
+      state: {
+        type: String,
+        required: true,
+      },
+      country: {
+        type: String,
+        required: true,
+      },
+      other: {
+        type: String,
+      },
+      pincode: {
+        type: Number,
+        required: true,
+      },
+    },
+    paymentInfo: {
+      razorpayOrderId: {
+        type: String,
+        required: true,
+      },
+      razorpayPaymentId: {
+        type: String,
+        required: true,
+      },
+      paymentMethod: {
+        type: String,
+        enum: ["RAZORPAY", "COD"],
+        required: true,
+        default: "RAZORPAY"
+      },
+      paymentStatus: {
+        type: String,
+        enum: ["Pending", "Completed", "Failed"],
+        required: true,
+        default: "Pending"
+      }
+    },
+    orderItems: [
+      {
+        product: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Product",
+          required: true,
+        },
+        color: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Color",
+          required: true,
+        },
+        quantity: {
+          type: Number,
+          required: true,
+        },
+        price: {
+          type: Number,
+          required: true,
+        },
+      },
+    ],
+    paidAt: {
+      type: Date,
+      default: Date.now(),
+    },
+    month: {
+      type: Number,
+      default: new Date().getMonth(),
+    },
+    totalPrice: {
+      type: Number,
+      required: true,
+    },
+    totalPriceAfterDiscount: {
+      type: Number,
+      required: true,
+    },
+    orderStatus: {
+      type: String,
+      enum: ["Processing", "Shipped", "Delivered", "Cancelled"],
+      default: "Processing",
+    },
+  },
+  {
+    timestamps: true,
   }
-};
+);
 
-// Get all orders for a user
-const getOrders = async (req, res) => {
-  try {
-    const orders = await Order.find({ user: req.user._id })
-      .populate("orderItems.product")
-      .populate("orderItems.color");
-    
-    res.json({ 
-      success: true, 
-      orders 
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      success: false, 
-      message: "Error fetching orders",
-      error: error.message 
-    });
-  }
-};
-
-module.exports = { 
-  placeCODOrder,
-  getOrders
-};
+//Export the model
+module.exports = mongoose.model("Order", orderSchema);
