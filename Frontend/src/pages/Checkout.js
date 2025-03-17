@@ -196,22 +196,23 @@ const Checkout = () => {
 
   const handleCashOnDelivery = async () => {
     try {
-      dispatch(
-        createAnOrder({
-          totalPrice: totalAmount,
-          totalPriceAfterDiscount: totalAmount,
-          orderItems: cartProductState,
-          paymentInfo: {
-            paymentMethod: "COD",
-            paymentStatus: "Pending"
-          },
-          shippingInfo: JSON.parse(localStorage.getItem("address")),
-        })
-      );
+      const orderData = {
+        shippingInfo: JSON.parse(localStorage.getItem("address")),
+        orderItems: cartProductState,
+        totalPrice: totalAmount,
+        totalPriceAfterDiscount: totalAmount,
+        paymentInfo: {
+          razorpayOrderId: "COD-" + Date.now(),
+          razorpayPaymentId: "COD-" + Date.now(),
+          paymentMethod: "COD",
+          paymentStatus: "Pending"
+        }
+      };
+
+      dispatch(createAnOrder(orderData));
       dispatch(deleteUserCart(config2));
       localStorage.removeItem("address");
       dispatch(resetState());
-      navigate("/my-orders");
     } catch (error) {
       console.error("Error processing COD order:", error);
     }
@@ -506,3 +507,4 @@ const Checkout = () => {
 };
 
 export default Checkout;
+
