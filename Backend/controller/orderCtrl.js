@@ -3,46 +3,65 @@ const Order = require("../models/orderModel");
 // ✅ Handle COD Order
 const placeCODOrder = async (req, res) => {
   try {
-    // Ensure user is authenticated
-    if (!req.user || !req.user._id) {
-      return res.status(401).json({ success: false, message: "User not authenticated!" });
-    }
+    const { shippingInfo, orderItems, totalPrice, totalPriceAfterDiscount } = req.body;
 
-    const userId = req.user._id;
-    const { shippingInfo, orderItems, totalPrice } = req.body;
-
-    // Validate request data
     if (!shippingInfo || !orderItems || !totalPrice) {
       return res.status(400).json({ success: false, message: "Missing order details!" });
     }
 
-    // Ensure orderItems is not empty
-    if (!Array.isArray(orderItems) || orderItems.length === 0) {
-      return res.status(400).json({ success: false, message: "Order items cannot be empty!" });
-    }
-
-    // Create a new COD order
     const newOrder = new Order({
-      user: userId,
+      user: req.user._id, // Get user from auth middleware
       shippingInfo,
       orderItems,
       totalPrice,
-      totalPriceAfterDiscount: totalPrice, // Handle discounts later
+      totalPriceAfterDiscount: totalPriceAfterDiscount || totalPrice,
       paymentInfo: {
-        paymentMethod: "Cash on Delivery",
-        razorpayOrderId: "COD",
-        razorpayPaymentId: "COD",
+        razorpayOrderId: "COD-" + Date.now(),
+        razorpayPaymentId: "COD-" + Date.now(),
+        paymentMethod: "COD",
+        paymentStatus: "Pending"
       },
-      orderStatus: "Placed (COD)",
+      orderStatus: "Processing",
     });
 
     await newOrder.save();
 
-    return res.json({ success: true, message: "COD order placed successfully!", order: newOrder });
+    res.json({ 
+      success: true, 
+      message: "COD order placed successfully!", 
+      order: newOrder 
+    });
   } catch (error) {
-    console.error("Error placing COD order:", error);
-    return res.status(500).json({ success: false, message: "Internal Server Error!" });
+    console.error("Error in placeCODOrder:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Error placing COD order",
+      error: error.message 
+    });
   }
 };
 
-module.exports = { placeCODOrder };
+// Get all orders for a user
+const getOrders = async (req, res) => {
+  try {
+    const orders = await Order.find({ user: req.user._id })
+      .populate("orderItems.product")
+      .populate("orderItems.color");
+    
+    res.json({ 
+      success: true, 
+      orders 
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      message: "Error fetching orders",
+      error: error.message 
+    });
+  }
+};
+
+module.exports = { 
+  placeCODOrder,
+  getOrders
+};
