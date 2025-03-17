@@ -60,6 +60,19 @@ const updateProductFromCart = async (cartDetail) => {
 };
 
 const createOrder = async (orderDetail) => {
+  const getTokenFromLocalStorage = localStorage.getItem("customer")
+    ? JSON.parse(localStorage.getItem("customer"))
+    : null;
+
+  const config = {
+    headers: {
+      Authorization: `Bearer ${
+        getTokenFromLocalStorage !== null ? getTokenFromLocalStorage.token : ""
+      }`,
+      Accept: "application/json",
+    },
+  };
+
   const response = await axios.post(
     `${base_url}order/cod`,
     orderDetail,
@@ -71,6 +84,19 @@ const createOrder = async (orderDetail) => {
 };
 
 const getUserOrders = async () => {
+  const getTokenFromLocalStorage = localStorage.getItem("customer")
+    ? JSON.parse(localStorage.getItem("customer"))
+    : null;
+
+  const config = {
+    headers: {
+      Authorization: `Bearer ${
+        getTokenFromLocalStorage !== null ? getTokenFromLocalStorage.token : ""
+      }`,
+      Accept: "application/json",
+    },
+  };
+
   const response = await axios.get(`${base_url}order/my-orders`, config);
 
   if (response.data) {
