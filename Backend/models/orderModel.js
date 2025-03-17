@@ -1,56 +1,67 @@
-const mongoose = require("mongoose");
+const Order = require("../models/orderModel");
 
-// Declare the Schema of the Mongo model
-var orderSchema = new mongoose.Schema(
-  {
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-    shippingInfo: {
-      firstname: { type: String, required: true },
-      lastname: { type: String, required: true },
-      address: { type: String, required: true },
-      city: { type: String, required: true },
-      state: { type: String, required: true },
-      other: { type: String },
-      pincode: { type: Number, required: true },
-    },
-    paymentInfo: {
-      razorpayOrderId: { type: String, required: true },
-      razorpayPaymentId: { type: String, required: true },
-    },
-    orderItems: [
-      {
-        product: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Product",
-          required: true,
-        },
-        color: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Color",
-          required: true,
-        },
-        quantity: { type: Number, required: true },
-        price: { type: Number, required: true },
+// ✅ Handle COD Order
+const placeCODOrder = async (req, res) => {
+  try {
+    const { shippingInfo, orderItems, totalPrice, totalPriceAfterDiscount } = req.body;
+
+    if (!shippingInfo || !orderItems || !totalPrice) {
+      return res.status(400).json({ success: false, message: "Missing order details!" });
+    }
+
+    const newOrder = new Order({
+      user: req.user._id, // Get user from auth middleware
+      shippingInfo,
+      orderItems,
+      totalPrice,
+      totalPriceAfterDiscount: totalPriceAfterDiscount || totalPrice,
+      paymentInfo: {
+        razorpayOrderId: "COD-" + Date.now(),
+        razorpayPaymentId: "COD-" + Date.now(),
+        paymentMethod: "COD",
+        paymentStatus: "Pending"
       },
-    ],
-    paidAt: {
-      type: Date,
-      default: () => Date.now(),
-    },
-    month: {
-      type: Number,
-      default: () => new Date().getMonth(),
-    },
-    totalPrice: { type: Number, required: true },
-    totalPriceAfterDiscount: { type: Number, required: false },
-    orderStatus: { type: String, default: "Ordered" },
-  },
-  { timestamps: true }
-);
+      orderStatus: "Processing",
+    });
 
-// Export the model
-module.exports = mongoose.model("Order", orderSchema);
+    await newOrder.save();
+
+    res.json({ 
+      success: true, 
+      message: "COD order placed successfully!", 
+      order: newOrder 
+    });
+  } catch (error) {
+    console.error("Error in placeCODOrder:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Error placing COD order",
+      error: error.message 
+    });
+  }
+};
+
+// Get all orders for a user
+const getOrders = async (req, res) => {
+  try {
+    const orders = await Order.find({ user: req.user._id })
+      .populate("orderItems.product")
+      .populate("orderItems.color");
+    
+    res.json({ 
+      success: true, 
+      orders 
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      message: "Error fetching orders",
+      error: error.message 
+    });
+  }
+};
+
+module.exports = { 
+  placeCODOrder,
+  getOrders
+};
