@@ -31,8 +31,21 @@ const addToCart = async (cartData) => {
   }
 };
 
-const getCart = async (data) => {
-  const response = await axios.get(`${base_url}user/cart`, data);
+const getCart = async () => {
+  const getTokenFromLocalStorage = localStorage.getItem("customer")
+    ? JSON.parse(localStorage.getItem("customer"))
+    : null;
+
+  const config = {
+    headers: {
+      Authorization: `Bearer ${
+        getTokenFromLocalStorage !== null ? getTokenFromLocalStorage.token : ""
+      }`,
+      Accept: "application/json",
+    },
+  };
+
+  const response = await axios.get(`${base_url}user/cart`, config);
   if (response.data) {
     return response.data;
   }
