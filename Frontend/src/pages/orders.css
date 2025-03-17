@@ -41,9 +41,31 @@
   .status-badge {
     background-color: #232f3e;
     color: white;
-    padding: 4px 8px;
+    padding: 4px 12px;
     border-radius: 4px;
     font-size: 0.9em;
+    font-weight: 500;
+    text-transform: capitalize;
+  }
+
+  .status-badge.processing {
+    background-color: #febd69;
+    color: #232f3e;
+  }
+
+  .status-badge.delivered {
+    background-color: #28a745;
+    color: white;
+  }
+
+  .status-badge.cancelled {
+    background-color: #dc3545;
+    color: white;
+  }
+
+  .status-badge.not-delivered {
+    background-color: #ffc107;
+    color: #232f3e;
   }
   
   /* Order Items Section */
@@ -144,6 +166,11 @@
   
     .info-item .value {
       font-size: 0.9em;
+    }
+
+    .status-badge {
+      padding: 4px 8px;
+      font-size: 0.85em;
     }
   }
   
