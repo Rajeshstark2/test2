@@ -50,7 +50,7 @@
 
   .status-badge.processing {
     background-color: #febd69;
-    color: #232f3e;
+    color: white;
   }
 
   .status-badge.delivered {
