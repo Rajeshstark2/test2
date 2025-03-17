@@ -15,20 +15,10 @@ const colorRouter = require("./routes/colorRoute");
 const enqRouter = require("./routes/enqRoute");
 const couponRouter = require("./routes/couponRoute");
 const uploadRouter = require("./routes/uploadRoute");
+const orderRouter = require("./routes/orderRoutes");
 const cookieParser = require("cookie-parser");
 const morgan = require("morgan");
 const cors = require("cors");
-const orderRoutes = require("./routes/orderRoutes");
-
-app.use(
-  cors({
-    origin: "https://test2-1-t9x9.onrender.com", // Allow frontend domain
-    methods: ["GET", "POST", "PUT", "DELETE"], // Allowed methods
-    allowedHeaders: ["Content-Type", "Authorization"], // Allowed headers
-    credentials: true, // Allow cookies, authentication headers
-  })
-);
-
 
 dbConnect();
 app.use(morgan("dev"));
@@ -46,7 +36,7 @@ app.use("/api/coupon", couponRouter);
 app.use("/api/color", colorRouter);
 app.use("/api/enquiry", enqRouter);
 app.use("/api/upload", uploadRouter);
-app.use("/api/orders", orderRoutes);
+app.use("/api/order", orderRouter);
 
 app.use(notFound);
 app.use(errorHandler);
