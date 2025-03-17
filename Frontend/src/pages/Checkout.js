@@ -73,6 +73,21 @@ const Checkout = () => {
 
   const [cartProductState, setCartProductState] = useState([]);
 
+  useEffect(() => {
+    let items = [];
+    if (cartState && cartState.length > 0) {
+      for (let index = 0; index < cartState.length; index++) {
+        items.push({
+          product: cartState[index].productId._id,
+          quantity: cartState[index].quantity,
+          color: cartState[index].color._id,
+          price: cartState[index].price,
+        });
+      }
+      setCartProductState(items);
+    }
+  }, [cartState]);
+
   const formik = useFormik({
     initialValues: {
       firstname: "",
@@ -87,6 +102,11 @@ const Checkout = () => {
     validationSchema: shippingSchema,
     onSubmit: async (values) => {
       try {
+        if (!cartProductState || cartProductState.length === 0) {
+          console.error("No items in cart");
+          return;
+        }
+
         const orderData = {
           shippingInfo: {
             firstname: values.firstname,
@@ -109,17 +129,28 @@ const Checkout = () => {
           }
         };
 
+        console.log("Submitting order:", orderData);
+
         if (paymentMethod === "cod") {
-          await dispatch(createAnOrder(orderData)).unwrap();
-          await dispatch(deleteUserCart(config2));
-          dispatch(resetState());
-          navigate("/my-orders");
+          const orderResult = await dispatch(createAnOrder(orderData)).unwrap();
+          console.log("Order result:", orderResult);
+          
+          if (orderResult.success) {
+            await dispatch(deleteUserCart(config2));
+            dispatch(resetState());
+            navigate("/my-orders");
+          } else {
+            console.error("Order creation failed:", orderResult);
+          }
         } else {
           localStorage.setItem("address", JSON.stringify(values));
           checkOutHandler();
         }
       } catch (error) {
         console.error("Error processing order:", error);
+        if (error.response) {
+          console.error("Error response:", error.response.data);
+        }
       }
     },
   });
@@ -137,19 +168,6 @@ const Checkout = () => {
       document.body.appendChild(script);
     });
   };
-
-  useEffect(() => {
-    let items = [];
-    for (let index = 0; index < cartState?.length; index++) {
-      items.push({
-        product: cartState[index].productId._id,
-        quantity: cartState[index].quantity,
-        color: cartState[index].color._id,
-        price: cartState[index].price,
-      });
-    }
-    setCartProductState(items);
-  }, []);
 
   const checkOutHandler = async () => {
     const res = await loadScript(
