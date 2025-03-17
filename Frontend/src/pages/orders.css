@@ -1,0 +1,159 @@
+ /* Orders Page Styles */
+.orders-list {
+    margin-top: 20px;
+  }
+  
+  .order-card {
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  
+  /* Order Summary Section */
+  .order-summary {
+    background-color: #febd69;
+    padding: 15px;
+  }
+  
+  .order-info {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+  
+  .info-item {
+    flex: 1;
+    min-width: 200px;
+  }
+  
+  .info-item .label {
+    font-weight: 600;
+    color: #232f3e;
+    margin-right: 8px;
+  }
+  
+  .info-item .value {
+    color: #333;
+  }
+  
+  .status-badge {
+    background-color: #232f3e;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.9em;
+  }
+  
+  /* Order Items Section */
+  .order-items {
+    padding: 15px;
+  }
+  
+  .items-header {
+    background-color: #232f3e;
+    color: white;
+    padding: 10px 15px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+  }
+  
+  .items-header h6 {
+    margin: 0;
+    font-size: 0.9em;
+  }
+  
+  .items-list {
+    padding: 0 15px;
+  }
+  
+  .item-row {
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .item-row:last-child {
+    border-bottom: none;
+  }
+  
+  .product-title {
+    margin: 0;
+    font-size: 0.9em;
+    color: #232f3e;
+  }
+  
+  /* Responsive Styles */
+  @media (max-width: 768px) {
+    .order-info {
+      flex-direction: column;
+      gap: 10px;
+    }
+  
+    .info-item {
+      min-width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+  
+    .items-header h6,
+    .item-row p {
+      font-size: 0.85em;
+    }
+  
+    .product-title {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 150px;
+    }
+  
+    .color-box {
+      width: 20px !important;
+      height: 20px !important;
+    }
+  }
+  
+  /* Additional Mobile Optimizations */
+  @media (max-width: 576px) {
+    .order-card {
+      margin: 10px -10px;
+      border-radius: 0;
+    }
+  
+    .order-summary {
+      padding: 10px;
+    }
+  
+    .order-items {
+      padding: 10px;
+    }
+  
+    .items-list {
+      padding: 0 5px;
+    }
+  
+    .product-title {
+      max-width: 120px;
+    }
+  
+    .info-item .label {
+      font-size: 0.9em;
+    }
+  
+    .info-item .value {
+      font-size: 0.9em;
+    }
+  }
+  
+  /* Utility Classes */
+  .d-md-none {
+    display: none;
+  }
+  
+  @media (max-width: 768px) {
+    .d-md-none {
+      display: inline;
+    }
+  }
