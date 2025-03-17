@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { BiArrowBack } from "react-icons/bi";
 import Container from "../components/Container";
 import { useDispatch, useSelector } from "react-redux";
 import { useFormik } from "formik";
@@ -13,54 +14,64 @@ import {
   resetState,
 } from "../features/user/userSlice";
 
-// Validation Schema
-const shippingSchema = yup.object({
+let shippingSchema = yup.object({
   firstname: yup.string().required("First Name is Required"),
   lastname: yup.string().required("Last Name is Required"),
   address: yup.string().required("Address Details are Required"),
-  state: yup.string().required("State is Required"),
-  city: yup.string().required("City is Required"),
-  country: yup.string().required("Country is Required"),
-  pincode: yup.number().required("Pincode is Required").positive().integer(),
+  state: yup.string().required("S tate is Required"),
+  city: yup.string().required("city is Required"),
+  country: yup.string().required("country is Required"),
+  pincode: yup.number("Pincode No is Required").required().positive().integer(),
 });
 
 const Checkout = () => {
   const dispatch = useDispatch();
   const cartState = useSelector((state) => state?.auth?.cartProducts);
   const authState = useSelector((state) => state?.auth);
+  const [totalAmount, setTotalAmount] = useState(null);
+  const [shippingInfo, setShippingInfo] = useState(null);
+  const [paymentInfo, setPaymentInfo] = useState({
+    razorpayPaymentId: "",
+    razorpayOrderId: "",
+  });
   const navigate = useNavigate();
-
-  const [totalAmount, setTotalAmount] = useState(0);
-  const [cartProductState, setCartProductState] = useState([]);
-  const [paymentMethod, setPaymentMethod] = useState("online");
+  const [paymentMethod, setPaymentMethod] = useState("razorpay");
 
   useEffect(() => {
     let sum = 0;
-    cartState?.forEach((item) => {
-      sum += item.quantity * item.price;
-    });
-    setTotalAmount(sum);
+    for (let index = 0; index < cartState?.length; index++) {
+      sum = sum + Number(cartState[index].quantity) * cartState[index].price;
+      setTotalAmount(sum);
+    }
   }, [cartState]);
 
-  useEffect(() => {
-    let items = cartState?.map((item) => ({
-      product: item.productId._id,
-      quantity: item.quantity,
-      color: item.color._id,
-      price: item.price,
-    }));
-    setCartProductState(items);
-  }, [cartState]);
+  const getTokenFromLocalStorage = localStorage.getItem("customer")
+    ? JSON.parse(localStorage.getItem("customer"))
+    : null;
+
+  const config2 = {
+    headers: {
+      Authorization: `Bearer ${
+        getTokenFromLocalStorage !== null ? getTokenFromLocalStorage.token : ""
+      }`,
+      Accept: "application/json",
+    },
+  };
 
   useEffect(() => {
-    if (authState?.orderedProduct?.order !== null && authState?.orderedProduct?.success === true) {
+    dispatch(getUserCart(config2));
+  }, []);
+
+  useEffect(() => {
+    if (
+      authState?.orderedProduct?.order !== null &&
+      authState?.orderedProduct?.success === true
+    ) {
       navigate("/my-orders");
     }
   }, [authState]);
 
-  useEffect(() => {
-    dispatch(getUserCart());
-  }, []);
+  const [cartProductState, setCartProductState] = useState([]);
 
   const formik = useFormik({
     initialValues: {
@@ -75,17 +86,50 @@ const Checkout = () => {
     },
     validationSchema: shippingSchema,
     onSubmit: (values) => {
+      setShippingInfo(values);
       localStorage.setItem("address", JSON.stringify(values));
-      if (paymentMethod === "online") {
-        checkOutHandler(); // Razorpay payment
-      } else {
-        cashOnDeliveryHandler(); // COD
-      }
+      setTimeout(() => {
+        handlePaymentSubmit();
+      }, 300);
     },
   });
 
-  // Razorpay Online Payment
+  const loadScript = (src) => {
+    return new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = src;
+      script.onload = () => {
+        resolve(true);
+      };
+      script.onerror = () => {
+        resolve(false);
+      };
+      document.body.appendChild(script);
+    });
+  };
+
+  useEffect(() => {
+    let items = [];
+    for (let index = 0; index < cartState?.length; index++) {
+      items.push({
+        product: cartState[index].productId._id,
+        quantity: cartState[index].quantity,
+        color: cartState[index].color._id,
+        price: cartState[index].price,
+      });
+    }
+    setCartProductState(items);
+  }, []);
+
   const checkOutHandler = async () => {
+    const res = await loadScript(
+      "https://checkout.razorpay.com/v1/checkout.js"
+    );
+
+    if (!res) {
+      alert("Razorpay SDK faild to Load");
+      return;
+    }
     const result = await axios.post(
       "https://test2-60yt.onrender.com/api/user/order/checkout",
       { amount: totalAmount + 50 },
@@ -93,94 +137,371 @@ const Checkout = () => {
     );
 
     if (!result) {
-      alert("Something went wrong");
+      alert("Something Went Wrong");
       return;
     }
 
+    const { amount, id: order_id, currency } = result.data.order;
+
     const options = {
-      key: "rzp_test_fdOA5JRqNiD2Tb",
-      amount: result.data.order.amount,
-      currency: result.data.order.currency,
-      name: "Cart's Corner",
+      key: "rzp_test_fdOA5JRqNiD2Tb", // Enter the Key ID generated from the Dashboard
+      amount: amount,
+      currency: currency,
+      name: "Cart's corner",
       description: "Test Transaction",
-      order_id: result.data.order.id,
+
+      order_id: order_id,
       handler: async function (response) {
-        const paymentData = {
-          orderCreationId: result.data.order.id,
+        const data = {
+          orderCreationId: order_id,
           razorpayPaymentId: response.razorpay_payment_id,
           razorpayOrderId: response.razorpay_order_id,
         };
-        const verifyRes = await axios.post(
+
+        const result = await axios.post(
           "https://test2-60yt.onrender.com/api/user/order/paymentVerification",
-          paymentData,
+          data,
           config
         );
-        dispatch(createAnOrder({
-          totalPrice: totalAmount,
-          totalPriceAfterDiscount: totalAmount,
-          orderItems: cartProductState,
-          paymentInfo: verifyRes.data,
-          shippingInfo: JSON.parse(localStorage.getItem("address")),
-        }));
-        dispatch(deleteUserCart());
+
+        dispatch(
+          createAnOrder({
+            totalPrice: totalAmount,
+            totalPriceAfterDiscount: totalAmount,
+            orderItems: cartProductState,
+            paymentInfo: result.data,
+            shippingInfo: JSON.parse(localStorage.getItem("address")),
+          })
+        );
+        dispatch(deleteUserCart(config2));
         localStorage.removeItem("address");
         dispatch(resetState());
       },
-      theme: { color: "#61dafb" },
+      prefill: {
+        name: "prabanjam",
+        email: "prabanjam.original@gmail.com",
+        contact: "+91 97918 46885",
+      },
+      notes: {
+        address: "prabanjam PGM Enterprises:",
+      },
+      theme: {
+        color: "#61dafb",
+      },
     };
+
     const paymentObject = new window.Razorpay(options);
     paymentObject.open();
   };
 
-  // Cash on Delivery (COD) Handler
-  const cashOnDeliveryHandler = async () => {
-    dispatch(createAnOrder({
-      totalPrice: totalAmount,
-      totalPriceAfterDiscount: totalAmount,
-      orderItems: cartProductState,
-      paymentInfo: { paymentMethod: "COD" },
-      shippingInfo: JSON.parse(localStorage.getItem("address")),
-    }));
-    dispatch(deleteUserCart());
-    localStorage.removeItem("address");
-    dispatch(resetState());
-    navigate("/my-orders");
+  const handleCashOnDelivery = async () => {
+    try {
+      dispatch(
+        createAnOrder({
+          totalPrice: totalAmount,
+          totalPriceAfterDiscount: totalAmount,
+          orderItems: cartProductState,
+          paymentInfo: {
+            paymentMethod: "COD",
+            paymentStatus: "Pending"
+          },
+          shippingInfo: JSON.parse(localStorage.getItem("address")),
+        })
+      );
+      dispatch(deleteUserCart(config2));
+      localStorage.removeItem("address");
+      dispatch(resetState());
+      navigate("/my-orders");
+    } catch (error) {
+      console.error("Error processing COD order:", error);
+    }
+  };
+
+  const handlePaymentSubmit = () => {
+    if (paymentMethod === "cod") {
+      handleCashOnDelivery();
+    } else {
+      checkOutHandler();
+    }
   };
 
   return (
-    <Container class1="checkout-wrapper py-5 home-wrapper-2">
-      <div className="row">
-        <div className="col-7">
-          <div className="checkout-left-data">
-            <h3 className="website-name">Cart Corner</h3>
-            <h4 className="mb-3">Shipping Address</h4>
-            <form onSubmit={formik.handleSubmit} className="d-flex flex-wrap">
-              <input type="text" placeholder="First Name" name="firstname" {...formik.getFieldProps("firstname")} />
-              <input type="text" placeholder="Last Name" name="lastname" {...formik.getFieldProps("lastname")} />
-              <input type="text" placeholder="Address" name="address" {...formik.getFieldProps("address")} />
-              <input type="text" placeholder="City" name="city" {...formik.getFieldProps("city")} />
-              <input type="text" placeholder="Pincode" name="pincode" {...formik.getFieldProps("pincode")} />
-
-              {/* Payment Method Selection */}
-              <h4>Select Payment Method:</h4>
-              <div>
-                <input type="radio" id="online" name="paymentMethod" value="online" defaultChecked onChange={() => setPaymentMethod("online")} />
-                <label htmlFor="online">Online Payment</label>
+    <>
+      <Container class1="checkout-wrapper py-5 home-wrapper-2">
+        <div className="row">
+          <div className="col-7">
+            <div className="checkout-left-data">
+              <h3 className="website-name">Cart Corner</h3>
+              <nav
+                style={{ "--bs-breadcrumb-divider": ">" }}
+                aria-label="breadcrumb"
+              >
+                <ol className="breadcrumb">
+                  <li className="breadcrumb-item">
+                    <Link className="text-dark total-price" to="/cart">
+                      Cart
+                    </Link>
+                  </li>
+                  &nbsp; /&nbsp;
+                  <li
+                    className="breadcrumb-ite total-price active"
+                    aria-current="page"
+                  >
+                    Information
+                  </li>
+                  &nbsp; /
+                  <li className="breadcrumb-item total-price active">
+                    Shipping
+                  </li>
+                  &nbsp; /
+                  <li
+                    className="breadcrumb-item total-price active"
+                    aria-current="page"
+                  >
+                    Payment
+                  </li>
+                </ol>
+              </nav>
+              <h4 className="title total">Contact Information</h4>
+              <p className="user-details total">
+                prabanjam (prabanjam.original@gmail.com)
+              </p>
+              <h4 className="mb-3">Shipping Address</h4>
+              <form
+                onSubmit={formik.handleSubmit}
+                action=""
+                className="d-flex gap-15 flex-wrap justify-content-between"
+              >
+                <div className="w-100">
+                  <select
+                    className="form-control form-select"
+                    id=""
+                    name="country"
+                    value={formik.values.country}
+                    onChange={formik.handleChange("country")}
+                    onBlur={formik.handleChange("country")}
+                  >
+                    <option value="" selected disabled>
+                      Select Country
+                    </option>
+                    <option value="India">India</option>
+                  </select>
+                  <div className="error ms-2 my-1">
+                    {formik.touched.country && formik.errors.country}
+                  </div>
+                </div>
+                <div className="flex-grow-1">
+                  <input
+                    type="text"
+                    placeholder="First Name"
+                    className="form-control"
+                    name="firstname"
+                    value={formik.values.firstname}
+                    onChange={formik.handleChange("firstname")}
+                    onBlur={formik.handleBlur("firstname")}
+                  />
+                  <div className="error ms-2 my-1">
+                    {formik.touched.firstname && formik.errors.firstname}
+                  </div>
+                </div>
+                <div className="flex-grow-1">
+                  <input
+                    type="text"
+                    placeholder="Last Name"
+                    className="form-control"
+                    name="lastname"
+                    value={formik.values.lastname}
+                    onChange={formik.handleChange("lastname")}
+                    onBlur={formik.handleBlur("lastname")}
+                  />
+                  <div className="error ms-2 my-1">
+                    {formik.touched.lastname && formik.errors.lastname}
+                  </div>
+                </div>
+                <div className="w-100">
+                  <input
+                    type="text"
+                    placeholder="Address"
+                    className="form-control"
+                    name="address"
+                    value={formik.values.address}
+                    onChange={formik.handleChange("address")}
+                    onBlur={formik.handleBlur("address")}
+                  />
+                  <div className="error ms-2 my-1">
+                    {formik.touched.address && formik.errors.address}
+                  </div>
+                </div>
+                <div className="w-100">
+                  <input
+                    type="text"
+                    placeholder="Apartment, Suite ,etc"
+                    className="form-control"
+                    name="other"
+                    value={formik.values.other}
+                    onChange={formik.handleChange("other")}
+                    onBlur={formik.handleBlur("other")}
+                  />
+                </div>
+                <div className="flex-grow-1">
+                  <input
+                    type="text"
+                    placeholder="City"
+                    className="form-control"
+                    name="city"
+                    value={formik.values.city}
+                    onChange={formik.handleChange("city")}
+                    onBlur={formik.handleBlur("city")}
+                  />
+                  <div className="error ms-2 my-1">
+                    {formik.touched.city && formik.errors.city}
+                  </div>
+                </div>
+                <div className="flex-grow-1">
+                  <select
+                    className="form-control form-select"
+                    id=""
+                    name="state"
+                    value={formik.values.state}
+                    onChange={formik.handleChange("state")}
+                    onBlur={formik.handleChange("state")}
+                  >
+                    <option value="" selected disabled>
+                      Select State
+                    </option>
+                    <option value="Tamil Nadu">Tamil Nadu</option>
+                  </select>
+                  <div className="error ms-2 my-1">
+                    {formik.touched.state && formik.errors.state}
+                  </div>
+                </div>
+                <div className="flex-grow-1">
+                  <input
+                    type="text"
+                    placeholder="Pincode"
+                    className="form-control"
+                    name="pincode"
+                    value={formik.values.pincode}
+                    onChange={formik.handleChange("pincode")}
+                    onBlur={formik.handleBlur("pincode")}
+                  />
+                  <div className="error ms-2 my-1">
+                    {formik.touched.pincode && formik.errors.pincode}
+                  </div>
+                </div>
+                <div className="w-100 mt-3">
+                  <h4 className="mb-3">Payment Method</h4>
+                  <div className="d-flex gap-3">
+                    <div className="form-check">
+                      <input
+                        type="radio"
+                        className="form-check-input"
+                        id="razorpay"
+                        name="paymentMethod"
+                        value="razorpay"
+                        checked={paymentMethod === "razorpay"}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                      />
+                      <label className="form-check-label" htmlFor="razorpay">
+                        Online Payment (Razorpay)
+                      </label>
+                    </div>
+                    <div className="form-check">
+                      <input
+                        type="radio"
+                        className="form-check-input"
+                        id="cod"
+                        name="paymentMethod"
+                        value="cod"
+                        checked={paymentMethod === "cod"}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                      />
+                      <label className="form-check-label" htmlFor="cod">
+                        Cash on Delivery
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div className="w-100">
+                  <div className="d-flex justify-content-between align-items-center">
+                    <Link to="/cart" className="text-dark">
+                      <BiArrowBack className="me-2" />
+                      Return to Cart
+                    </Link>
+                    <button 
+                      className="button" 
+                      type="submit"
+                      onClick={() => handlePaymentSubmit()}
+                    >
+                      {paymentMethod === "cod" ? "Place COD Order" : "Proceed to Pay"}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+          <div className="col-5">
+            <div className="border-bottom py-4">
+              {cartState &&
+                cartState?.map((item, index) => {
+                  return (
+                    <div
+                      key={index}
+                      className="d-flex gap-10 mb-2 align-align-items-center"
+                    >
+                      <div className="w-75 d-flex gap-10">
+                        <div className="w-25 position-relative">
+                          <span
+                            style={{ top: "-10px", right: "2px" }}
+                            className="badge bg-secondary text-white rounded-circle p-2 position-absolute"
+                          >
+                            {item?.quantity}
+                          </span>
+                          <img
+                            src={item?.productId?.images[0]?.url}
+                            width={100}
+                            height={100}
+                            alt="product"
+                          />
+                        </div>
+                        <div>
+                          <h5 className="total-price">
+                            {item?.productId?.title}
+                          </h5>
+                          <p className="total-price">{item?.color?.title}</p>
+                        </div>
+                      </div>
+                      <div className="flex-grow-1">
+                        <h5 className="total">
+                          Rs. {item?.price * item?.quantity}
+                        </h5>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+            <div className="border-bottom py-4">
+              <div className="d-flex justify-content-between align-items-center">
+                <p className="total">Subtotal</p>
+                <p className="total-price">
+                  Rs. {totalAmount ? totalAmount : "0"}
+                </p>
               </div>
-              <div>
-                <input type="radio" id="cod" name="paymentMethod" value="cod" onChange={() => setPaymentMethod("cod")} />
-                <label htmlFor="cod">Cash on Delivery</label>
+              <div className="d-flex justify-content-between align-items-center">
+                <p className="mb-0 total">Shipping</p>
+                <p className="mb-0 total-price">Rs. 50</p>
               </div>
-
-              <button type="submit" className="button">Place Order</button>
-            </form>
+            </div>
+            <div className="d-flex justify-content-between align-items-center border-bootom py-4">
+              <h4 className="total">Total</h4>
+              <h5 className="total-price">
+                Rs. {totalAmount ? totalAmount + 50 : "0"}
+              </h5>
+            </div>
           </div>
         </div>
-        <div className="col-5">
-          <h4 className="total">Total: Rs. {totalAmount + 50}</h4>
-        </div>
-      </div>
-    </Container>
+      </Container>
+    </>
   );
 };
 
