@@ -3,6 +3,7 @@ import Container from "../components/Container";
 import BreadCrumb from "../components/BreadCrumb";
 import { useDispatch, useSelector } from "react-redux";
 import { getOrders } from "../features/user/userSlice";
+import "./orders.css";
 
 const Orders = () => {
   const dispatch = useDispatch();
@@ -26,93 +27,102 @@ const Orders = () => {
   useEffect(() => {
     dispatch(getOrders(config2));
   }, []);
+
   return (
     <>
       <BreadCrumb title="My Orders" />
       <Container class1="cart-wrapper home-wrapper-2 py-5">
         <div className="row">
           <div className="col-12">
-            <div className="row">
-              <div className="col-3">
+            <div className="order-header d-none d-md-flex">
+              <div className="col-md-3">
                 <h5>Order Id</h5>
               </div>
-              <div className="col-3">
+              <div className="col-md-3">
                 <h5>Total Amount</h5>
               </div>
-              <div className="col-3">
-                <h5>Total Amount after Discount</h5>
+              <div className="col-md-3">
+                <h5>Total After Discount</h5>
               </div>
-              <div className="col-3">
+              <div className="col-md-3">
                 <h5>Status</h5>
               </div>
             </div>
 
-            <div className="col-12  mt-3">
+            <div className="orders-list">
               {orderState &&
                 orderState?.map((item, index) => {
                   return (
-                    <div
-                      style={{ backgroundColor: "#febd69" }}
-                      className="row pt-3 my-3"
-                      key={index}
-                    >
-                      <div className="col-3">
-                        <p>{item?._id}</p>
-                      </div>
-                      <div className="col-3">
-                        <p>{item?.totalPrice}</p>
-                      </div>
-                      <div className="col-3">
-                        <p>{item?.totalPriceAfterDiscount}</p>
-                      </div>
-                      <div className="col-3">
-                        <p>{item?.orderStatus}</p>
-                      </div>
-                      <div className="col-12">
-                        <div
-                          className="row py-3"
-                          style={{ backgroundColor: "#232f3e" }}
-                        >
-                          <div className="col-3">
-                            <h6 className="text-white">ProductName</h6>
+                    <div className="order-card" key={index}>
+                      {/* Order Summary - Visible on both mobile and desktop */}
+                      <div className="order-summary">
+                        <div className="order-info">
+                          <div className="info-item">
+                            <span className="label d-md-none">Order ID:</span>
+                            <span className="value">{item?._id}</span>
                           </div>
-                          <div className="col-3">
-                            <h6 className="text-white">Quantity</h6>
+                          <div className="info-item">
+                            <span className="label d-md-none">Total:</span>
+                            <span className="value">₹{item?.totalPrice}</span>
                           </div>
-                          <div className="col-3">
-                            <h6 className="text-white">Price</h6>
+                          <div className="info-item">
+                            <span className="label d-md-none">After Discount:</span>
+                            <span className="value">₹{item?.totalPriceAfterDiscount}</span>
                           </div>
-                          <div className="col-3">
-                            <h6 className="text-white">Color</h6>
+                          <div className="info-item">
+                            <span className="label d-md-none">Status:</span>
+                            <span className="value status-badge">{item?.orderStatus}</span>
                           </div>
-                          {item?.orderItems?.map((i, index) => {
-                            return (
-                              <div className="col-12">
-                                <div className="row py-3">
-                                  <div className="col-3">
-                                    <p className="text-white">
-                                      {i?.product?.title}
-                                    </p>
-                                  </div>
-                                  <div className="col-3">
-                                    <p className="text-white">{i?.quantity}</p>
-                                  </div>
-                                  <div className="col-3">
-                                    <p className="text-white">{i?.price}</p>
-                                  </div>
-                                  <div className="col-3">
-                                    <ul className="colors ps-0">
-                                      <li
-                                        style={{
-                                          backgroundColor: i?.color.title,
-                                        }}
-                                      ></li>
-                                    </ul>
-                                  </div>
+                        </div>
+                      </div>
+
+                      {/* Order Items */}
+                      <div className="order-items">
+                        <div className="items-header">
+                          <div className="row">
+                            <div className="col-6 col-md-3">
+                              <h6>Product</h6>
+                            </div>
+                            <div className="col-2 col-md-3">
+                              <h6>Qty</h6>
+                            </div>
+                            <div className="col-2 col-md-3">
+                              <h6>Price</h6>
+                            </div>
+                            <div className="col-2 col-md-3">
+                              <h6>Color</h6>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="items-list">
+                          {item?.orderItems?.map((i, index) => (
+                            <div className="item-row" key={index}>
+                              <div className="row align-items-center">
+                                <div className="col-6 col-md-3">
+                                  <p className="product-title">{i?.product?.title}</p>
+                                </div>
+                                <div className="col-2 col-md-3">
+                                  <p>{i?.quantity}</p>
+                                </div>
+                                <div className="col-2 col-md-3">
+                                  <p>₹{i?.price}</p>
+                                </div>
+                                <div className="col-2 col-md-3">
+                                  <div 
+                                    className="color-box"
+                                    style={{
+                                      backgroundColor: i?.color?.title,
+                                      width: "25px",
+                                      height: "25px",
+                                      borderRadius: "50%",
+                                      border: "1px solid #ddd"
+                                    }}
+                                  ></div>
                                 </div>
                               </div>
-                            );
-                          })}
+                            </div>
+                          ))}
                         </div>
                       </div>
                     </div>
@@ -122,7 +132,6 @@ const Orders = () => {
           </div>
         </div>
       </Container>
-      .
     </>
   );
 };
