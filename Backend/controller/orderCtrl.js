@@ -1,67 +1,95 @@
 const Order = require("../models/orderModel");
+const asyncHandler = require("express-async-handler");
 
 // ✅ Handle COD Order
-const placeCODOrder = async (req, res) => {
+const placeCODOrder = asyncHandler(async (req, res) => {
   try {
-    const { shippingInfo, orderItems, totalPrice, totalPriceAfterDiscount } = req.body;
+    const { shippingInfo, orderItems, totalPrice, totalPriceAfterDiscount, paymentInfo } = req.body;
 
-    if (!shippingInfo || !orderItems || !totalPrice) {
-      return res.status(400).json({ success: false, message: "Missing order details!" });
+    // Validate required fields
+    if (!shippingInfo || !orderItems || !totalPrice || !paymentInfo) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields",
+        required: {
+          shippingInfo: !shippingInfo,
+          orderItems: !orderItems,
+          totalPrice: !totalPrice,
+          paymentInfo: !paymentInfo
+        }
+      });
     }
 
-    const newOrder = new Order({
-      user: req.user._id, // Get user from auth middleware
+    // Validate shipping info
+    const requiredShippingFields = ['firstname', 'lastname', 'address', 'city', 'state', 'country', 'pincode'];
+    const missingFields = requiredShippingFields.filter(field => !shippingInfo[field]);
+    
+    if (missingFields.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing shipping information fields",
+        missingFields
+      });
+    }
+
+    // Create new order
+    const newOrder = await Order.create({
+      user: req.user._id,
       shippingInfo,
       orderItems,
       totalPrice,
       totalPriceAfterDiscount: totalPriceAfterDiscount || totalPrice,
       paymentInfo: {
-        razorpayOrderId: "COD-" + Date.now(),
-        razorpayPaymentId: "COD-" + Date.now(),
+        ...paymentInfo,
         paymentMethod: "COD",
         paymentStatus: "Pending"
       },
-      orderStatus: "Processing",
+      orderStatus: "Processing"
     });
 
-    await newOrder.save();
+    // Populate order items
+    const populatedOrder = await Order.findById(newOrder._id)
+      .populate("orderItems.product")
+      .populate("orderItems.color");
 
-    res.json({ 
-      success: true, 
-      message: "COD order placed successfully!", 
-      order: newOrder 
+    res.status(200).json({
+      success: true,
+      message: "Order placed successfully",
+      order: populatedOrder
     });
   } catch (error) {
     console.error("Error in placeCODOrder:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Error placing COD order",
-      error: error.message 
+    res.status(500).json({
+      success: false,
+      message: "Error creating order",
+      error: error.message
     });
   }
-};
+});
 
 // Get all orders for a user
-const getOrders = async (req, res) => {
+const getOrders = asyncHandler(async (req, res) => {
   try {
     const orders = await Order.find({ user: req.user._id })
       .populate("orderItems.product")
-      .populate("orderItems.color");
+      .populate("orderItems.color")
+      .sort("-createdAt");
     
-    res.json({ 
-      success: true, 
-      orders 
+    res.status(200).json({
+      success: true,
+      orders
     });
   } catch (error) {
-    res.status(500).json({ 
-      success: false, 
+    console.error("Error in getOrders:", error);
+    res.status(500).json({
+      success: false,
       message: "Error fetching orders",
-      error: error.message 
+      error: error.message
     });
   }
-};
+});
 
-module.exports = { 
+module.exports = {
   placeCODOrder,
   getOrders
 };
