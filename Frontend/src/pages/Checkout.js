@@ -85,12 +85,42 @@ const Checkout = () => {
       other: "",
     },
     validationSchema: shippingSchema,
-    onSubmit: (values) => {
-      setShippingInfo(values);
-      localStorage.setItem("address", JSON.stringify(values));
-      setTimeout(() => {
-        handlePaymentSubmit();
-      }, 300);
+    onSubmit: async (values) => {
+      try {
+        const orderData = {
+          shippingInfo: {
+            firstname: values.firstname,
+            lastname: values.lastname,
+            address: values.address,
+            city: values.city,
+            state: values.state,
+            country: values.country,
+            pincode: values.pincode,
+            other: values.other || ""
+          },
+          orderItems: cartProductState,
+          totalPrice: totalAmount + 50, // Including shipping cost
+          totalPriceAfterDiscount: totalAmount + 50,
+          paymentInfo: {
+            razorpayOrderId: `COD-${Date.now()}`,
+            razorpayPaymentId: `COD-${Date.now()}`,
+            paymentMethod: paymentMethod.toUpperCase(),
+            paymentStatus: "Pending"
+          }
+        };
+
+        if (paymentMethod === "cod") {
+          await dispatch(createAnOrder(orderData)).unwrap();
+          await dispatch(deleteUserCart(config2));
+          dispatch(resetState());
+          navigate("/my-orders");
+        } else {
+          localStorage.setItem("address", JSON.stringify(values));
+          checkOutHandler();
+        }
+      } catch (error) {
+        console.error("Error processing order:", error);
+      }
     },
   });
 
@@ -194,47 +224,9 @@ const Checkout = () => {
     paymentObject.open();
   };
 
-  const handleCashOnDelivery = async () => {
-    try {
-      const shippingAddress = JSON.parse(localStorage.getItem("address"));
-      const orderData = {
-        shippingInfo: {
-          firstname: shippingAddress.firstname,
-          lastname: shippingAddress.lastname,
-          address: shippingAddress.address,
-          city: shippingAddress.city,
-          state: shippingAddress.state,
-          country: shippingAddress.country,
-          pincode: shippingAddress.pincode,
-          other: shippingAddress.other || ""
-        },
-        orderItems: cartProductState,
-        totalPrice: totalAmount + 50, // Including shipping cost
-        totalPriceAfterDiscount: totalAmount + 50,
-        paymentInfo: {
-          razorpayOrderId: `COD-${Date.now()}`,
-          razorpayPaymentId: `COD-${Date.now()}`,
-          paymentMethod: "COD",
-          paymentStatus: "Pending"
-        }
-      };
-
-      await dispatch(createAnOrder(orderData)).unwrap();
-      await dispatch(deleteUserCart(config2));
-      localStorage.removeItem("address");
-      dispatch(resetState());
-      navigate("/my-orders");
-    } catch (error) {
-      console.error("Error processing COD order:", error);
-    }
-  };
-
-  const handlePaymentSubmit = () => {
-    if (paymentMethod === "cod") {
-      handleCashOnDelivery();
-    } else {
-      checkOutHandler();
-    }
+  const handlePaymentSubmit = (e) => {
+    e.preventDefault();
+    formik.handleSubmit();
   };
 
   return (
@@ -280,8 +272,7 @@ const Checkout = () => {
               </p>
               <h4 className="mb-3">Shipping Address</h4>
               <form
-                onSubmit={formik.handleSubmit}
-                action=""
+                onSubmit={handlePaymentSubmit}
                 className="d-flex gap-15 flex-wrap justify-content-between"
               >
                 <div className="w-100">
@@ -443,7 +434,6 @@ const Checkout = () => {
                     <button 
                       className="button" 
                       type="submit"
-                      onClick={() => handlePaymentSubmit()}
                     >
                       {paymentMethod === "cod" ? "Place COD Order" : "Proceed to Pay"}
                     </button>
