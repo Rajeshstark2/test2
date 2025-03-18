@@ -300,7 +300,7 @@ const forgotPasswordToken = asyncHandler(async (req, res) => {
 
     await user.save();
     console.log(token);
-    const resetURL = `Hi, Please follow this link to reset Your Password. This link is valid till 10 minutes from now. <a href='https://prabanjampgm.com/reset-password/${token}'>Click Here</>`;
+    const resetURL = `Hi, Please follow this link to reset Your Password. This link is valid till 10 minutes from now. <a href='http://localhost:3000/reset-password/${token}'>Click Here</>`;
 
     const data = {
       to: email,
@@ -494,14 +494,35 @@ const getsingleOrder = asyncHandler(async (req, res) => {
 const updateOrder = asyncHandler(async (req, res) => {
   const { id } = req.params;
   try {
-    const orders = await Order.findById(id);
-    orders.orderStatus = req.body.status;
-    await orders.save();
+    const order = await Order.findById(id);
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found"
+      });
+    }
+    
+    order.orderStatus = req.body.status;
+    await order.save();
+    
+    // Populate the updated order
+    const updatedOrder = await Order.findById(id)
+      .populate("user")
+      .populate("orderItems.product")
+      .populate("orderItems.color");
+      
     res.json({
-      orders,
+      success: true,
+      message: "Order status updated successfully",
+      order: updatedOrder
     });
   } catch (error) {
-    throw new Error(error);
+    console.error("Error updating order:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error updating order status",
+      error: error.message
+    });
   }
 });
 
