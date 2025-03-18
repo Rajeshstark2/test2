@@ -122,10 +122,10 @@ const Checkout = () => {
           totalPrice: totalAmount + 50, // Including shipping cost
           totalPriceAfterDiscount: totalAmount + 50,
           paymentInfo: {
-            razorpayOrderId: `COD-${Date.now()}`,
-            razorpayPaymentId: `COD-${Date.now()}`,
+            razorpayOrderId: paymentMethod === "cod" ? `COD-${Date.now()}` : "",
+            razorpayPaymentId: paymentMethod === "cod" ? `COD-${Date.now()}` : "",
             paymentMethod: paymentMethod.toUpperCase(),
-            paymentStatus: "Pending"
+            paymentStatus: paymentMethod === "cod" ? "Pending" : "Pending"
           }
         };
 
