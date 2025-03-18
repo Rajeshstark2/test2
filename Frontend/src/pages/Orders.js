@@ -71,7 +71,9 @@ const Orders = () => {
                           </div>
                           <div className="info-item">
                             <span className="label d-md-none">Status:</span>
-                            <span className="value status-badge">{item?.orderStatus}</span>
+                            <span className={`value status-badge ${item?.orderStatus?.toLowerCase()}`}>
+                              {item?.orderStatus}
+                            </span>
                           </div>
                         </div>
                       </div>
