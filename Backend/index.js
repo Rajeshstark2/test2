@@ -21,8 +21,19 @@ const morgan = require("morgan");
 const cors = require("cors");
 
 dbConnect();
+
+// CORS configuration
+const corsOptions = {
+  origin: ['https://prabanjampgm.in', 'http://localhost:3000'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  credentials: true,
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+};
+
 app.use(morgan("dev"));
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
