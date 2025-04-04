@@ -33,35 +33,13 @@ var orderSchema = new mongoose.Schema(
         type: String,
         required: true,
       },
-      other: {
-        type: String,
-      },
       pincode: {
         type: Number,
         required: true,
       },
-    },
-    paymentInfo: {
-      razorpayOrderId: {
+      other: {
         type: String,
-        required: true,
       },
-      razorpayPaymentId: {
-        type: String,
-        required: true,
-      },
-      paymentMethod: {
-        type: String,
-        enum: ["RAZORPAY", "COD"],
-        required: true,
-        default: "RAZORPAY"
-      },
-      paymentStatus: {
-        type: String,
-        enum: ["Pending", "Completed", "Failed"],
-        required: true,
-        default: "Pending"
-      }
     },
     orderItems: [
       {
@@ -70,13 +48,13 @@ var orderSchema = new mongoose.Schema(
           ref: "Product",
           required: true,
         },
+        quantity: {
+          type: Number,
+          required: true,
+        },
         color: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "Color",
-          required: true,
-        },
-        quantity: {
-          type: Number,
           required: true,
         },
         price: {
@@ -85,32 +63,70 @@ var orderSchema = new mongoose.Schema(
         },
       },
     ],
-    paidAt: {
-      type: Date,
-      default: Date.now(),
-    },
-    month: {
-      type: Number,
-      default: new Date().getMonth(),
-    },
     totalPrice: {
       type: Number,
       required: true,
     },
     totalPriceAfterDiscount: {
       type: Number,
-      required: true,
+    },
+    paymentInfo: {
+      paymentMethod: {
+        type: String,
+        required: true,
+        enum: ["UPI", "COD"],
+        uppercase: true
+      },
+      paymentStatus: {
+        type: String,
+        required: true,
+        enum: ["Pending", "Completed"],
+        default: "Pending"
+      },
+      upiTransactionId: {
+        type: String,
+        required: function() {
+          return this.paymentInfo.paymentMethod === "UPI";
+        }
+      }
     },
     orderStatus: {
       type: String,
-      enum: ["Processing", "Shipped", "Delivered", "Cancelled"],
       default: "Processing",
+    },
+    paidAt: {
+      type: Date,
+    },
+    month: {
+      type: Number,
+      default: new Date().getMonth(),
     },
   },
   {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
   }
 );
+
+// Add a pre-save middleware to handle payment method and status
+orderSchema.pre('save', function(next) {
+  if (this.paymentInfo && this.paymentInfo.paymentMethod) {
+    this.paymentInfo.paymentMethod = this.paymentInfo.paymentMethod.toUpperCase();
+  }
+
+  // Validate shipping info
+  if (!this.shippingInfo || !this.shippingInfo.firstname || !this.shippingInfo.lastname) {
+    throw new Error("Shipping information is incomplete");
+  }
+  
+  // Validate order items
+  if (!this.orderItems || this.orderItems.length === 0) {
+    throw new Error("Order must contain at least one item");
+  }
+  
+  next();
+});
 
 //Export the model
 module.exports = mongoose.model("Order", orderSchema);

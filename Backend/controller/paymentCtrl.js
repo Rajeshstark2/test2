@@ -1,46 +1,126 @@
-require("dotenv").config();
-const Razorpay = require("razorpay");
-const crypto = require("crypto");
+const Order = require("../models/orderModel");
 
-const instance = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
-
-// Checkout API (Create Order)
-const checkout = async (req, res) => {
+const createOrder = async (req, res) => {
   try {
-    const { amount } = req.body;
-    const options = {
-      amount: amount * 100,
-      currency: "INR",
-    };
-    const order = await instance.orders.create(options);
-    res.json({ success: true, order });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
+    const { user, amount, paymentMethod, upiTransactionId, shippingInfo, orderItems } = req.body;
 
-// Payment Verification API (Verify Payment Signature)
-const paymentVerification = async (req, res) => {
-  try {
-    const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
+    console.log("Received order data:", {
+      user,
+      amount,
+      paymentMethod,
+      upiTransactionId,
+      shippingInfo,
+      orderItems: orderItems?.length
+    });
 
-    const body = razorpayOrderId + "|" + razorpayPaymentId;
-    const expectedSignature = crypto
-      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-      .update(body)
-      .digest("hex");
-
-    if (expectedSignature !== razorpaySignature) {
-      return res.status(400).json({ success: false, message: "Invalid signature" });
+    if (!user || !amount || !paymentMethod || !shippingInfo || !orderItems) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields"
+      });
     }
 
-    res.json({ success: true, razorpayOrderId, razorpayPaymentId });
+    if (paymentMethod.toUpperCase() === "UPI" && !upiTransactionId) {
+      return res.status(400).json({
+        success: false,
+        message: "UPI Transaction ID is required for UPI payments"
+      });
+    }
+
+    // Format order items to ensure they have the correct structure
+    const formattedOrderItems = orderItems.map(item => ({
+      product: item.product,
+      quantity: item.quantity,
+      color: item.color,
+      price: item.price
+    }));
+
+    const orderData = {
+      user: user,
+      totalPrice: amount,
+      totalPriceAfterDiscount: amount,
+      orderItems: formattedOrderItems,
+      shippingInfo: {
+        firstname: shippingInfo.firstname,
+        lastname: shippingInfo.lastname,
+        address: shippingInfo.address,
+        city: shippingInfo.city,
+        state: shippingInfo.state,
+        country: shippingInfo.country,
+        pincode: shippingInfo.pincode,
+        other: shippingInfo.other || ""
+      },
+      paymentInfo: {
+        paymentMethod: paymentMethod.toUpperCase(),
+        paymentStatus: paymentMethod.toUpperCase() === "UPI" ? "Completed" : "Pending",
+        upiTransactionId: paymentMethod.toUpperCase() === "UPI" ? upiTransactionId : null
+      },
+      orderStatus: "Processing",
+      paidAt: paymentMethod.toUpperCase() === "UPI" ? new Date() : null
+    };
+
+    console.log("Creating order with data:", orderData);
+
+    const order = await Order.create(orderData);
+
+    console.log("Created order:", {
+      _id: order._id,
+      paymentMethod: order.paymentInfo.paymentMethod,
+      upiTransactionId: order.paymentInfo.upiTransactionId,
+      paymentStatus: order.paymentInfo.paymentStatus
+    });
+
+    res.status(200).json({
+      success: true,
+      order
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Error creating order:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Error creating order"
+    });
   }
 };
 
-module.exports = { checkout, paymentVerification };
+const verifyPayment = async (req, res) => {
+  try {
+    const { upiTransactionId } = req.body;
+
+    if (!upiTransactionId) {
+      return res.status(400).json({
+        success: false,
+        message: "UPI Transaction ID is required"
+      });
+    }
+
+    const order = await Order.findOneAndUpdate(
+      { "paymentInfo.upiTransactionId": upiTransactionId },
+      { "paymentInfo.paymentStatus": "Completed" },
+      { new: true }
+    );
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found"
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      order
+    });
+  } catch (error) {
+    console.error("Error verifying payment:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Error verifying payment"
+    });
+  }
+};
+
+module.exports = {
+  createOrder,
+  verifyPayment
+};

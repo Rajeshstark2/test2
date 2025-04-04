@@ -427,23 +427,70 @@ const createOrder = asyncHandler(async (req, res) => {
     totalPrice,
     totalPriceAfterDiscount,
     paymentInfo,
+    orderStatus,
+    paidAt,
+    month
   } = req.body;
   const { _id } = req.user;
+  
   try {
-    const order = await Order.create({
+    // Validate required fields
+    if (!shippingInfo || !orderItems || !totalPrice || !paymentInfo) {
+      throw new Error("Missing required order fields");
+    }
+
+    // Ensure payment method is uppercase and valid
+    const paymentMethod = paymentInfo.paymentMethod.toUpperCase();
+    if (!["UPI", "COD"].includes(paymentMethod)) {
+      throw new Error("Invalid payment method");
+    }
+
+    // Create the order with all provided fields
+    const orderData = {
       shippingInfo,
-      orderItems,
+      orderItems: orderItems.map(item => ({
+        product: item.product,
+        quantity: item.quantity,
+        color: item.color,
+        price: item.price
+      })),
       totalPrice,
       totalPriceAfterDiscount,
-      paymentInfo,
+      paymentInfo: {
+        paymentMethod: paymentMethod,
+        paymentStatus: paymentMethod === "UPI" ? "Completed" : "Pending",
+        upiTransactionId: paymentMethod === "UPI" ? paymentInfo.upiTransactionId : null
+      },
       user: _id,
-    });
+      orderStatus: orderStatus || "Processing",
+      paidAt: paymentMethod === "UPI" ? new Date() : null,
+      month: month || new Date().getMonth()
+    };
+
+    console.log("Creating order with data:", orderData);
+
+    const order = await Order.create(orderData);
+
+    // Populate the order with user and product details
+    const populatedOrder = await Order.findById(order._id)
+      .populate("user")
+      .populate({
+        path: "orderItems.product",
+        select: "title price images"
+      })
+      .populate("orderItems.color");
+
     res.json({
-      order,
+      order: populatedOrder,
       success: true,
+      message: "Order created successfully"
     });
   } catch (error) {
-    throw new Error(error);
+    console.error("Error creating order:", error);
+    res.status(400).json({
+      success: false,
+      message: error.message || "Failed to create order"
+    });
   }
 });
 
@@ -463,31 +510,127 @@ const getMyOrders = asyncHandler(async (req, res) => {
 });
 
 const getAllOrders = asyncHandler(async (req, res) => {
-  const { _id } = req.user;
   try {
-    const orders = await Order.find().populate("user");
-    // .populate("orderItems.product")
-    // .populate("orderItems.color");
+    // First check if there are any orders
+    const orders = await Order.find()
+      .populate("user", "firstname lastname email mobile")
+      .populate("orderItems.product", "title price images")
+      .populate("orderItems.color", "title")
+      .sort({ createdAt: -1 });
+
+    if (!orders || orders.length === 0) {
+      return res.json({
+        success: true,
+        orders: []
+      });
+    }
+
+    // Format orders to ensure all data is included and properly structured
+    const formattedOrders = orders.map(order => {
+      // Ensure orderItems is an array
+      const orderItems = Array.isArray(order.orderItems) ? order.orderItems : [];
+      
+      // Format each order item
+      const formattedOrderItems = orderItems.map(item => ({
+        product: item.product || null,
+        quantity: item.quantity || 0,
+        color: item.color || null,
+        price: item.price || 0
+      }));
+
+      // Format shipping info with fallbacks
+      const shippingInfo = {
+        firstname: order.shippingInfo?.firstname || "",
+        lastname: order.shippingInfo?.lastname || "",
+        address: order.shippingInfo?.address || "",
+        city: order.shippingInfo?.city || "",
+        state: order.shippingInfo?.state || "",
+        country: order.shippingInfo?.country || "",
+        pincode: order.shippingInfo?.pincode || "",
+        other: order.shippingInfo?.other || ""
+      };
+
+      // Format payment info with fallbacks
+      const paymentInfo = {
+        paymentMethod: (order.paymentInfo?.paymentMethod || "COD").toUpperCase(),
+        paymentStatus: order.paymentInfo?.paymentStatus || "Pending",
+        upiTransactionId: order.paymentInfo?.upiTransactionId || ""
+      };
+
+      return {
+        _id: order._id,
+        user: order.user || null,
+        orderItems: formattedOrderItems,
+        shippingInfo,
+        paymentInfo,
+        totalPrice: order.totalPrice || 0,
+        totalPriceAfterDiscount: order.totalPriceAfterDiscount || 0,
+        orderStatus: order.orderStatus || "Processing",
+        createdAt: order.createdAt,
+        updatedAt: order.updatedAt
+      };
+    });
+
     res.json({
-      orders,
+      success: true,
+      orders: formattedOrders
     });
   } catch (error) {
-    throw new Error(error);
+    console.error("Error in getAllOrders:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching orders",
+      error: error.message
+    });
   }
 });
 
 const getsingleOrder = asyncHandler(async (req, res) => {
   const { id } = req.params;
   try {
-    const orders = await Order.findOne({ _id: id })
-      .populate("user")
-      .populate("orderItems.product")
-      .populate("orderItems.color");
+    const order = await Order.findOne({ _id: id })
+      .populate("user", "firstname lastname email mobile")
+      .populate("orderItems.product", "title price images")
+      .populate("orderItems.color", "title");
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found"
+      });
+    }
+
+    // Format order to ensure correct data structure
+    const formattedOrder = {
+      ...order._doc,
+      shippingInfo: {
+        firstname: order.shippingInfo?.firstname || "",
+        lastname: order.shippingInfo?.lastname || "",
+        address: order.shippingInfo?.address || "",
+        city: order.shippingInfo?.city || "",
+        state: order.shippingInfo?.state || "",
+        country: order.shippingInfo?.country || "",
+        pincode: order.shippingInfo?.pincode || "",
+        other: order.shippingInfo?.other || ""
+      },
+      paymentInfo: {
+        ...order.paymentInfo,
+        paymentMethod: order.paymentInfo.paymentMethod.toUpperCase(),
+        upiTransactionId: order.paymentInfo.upiTransactionId || ""
+      }
+    };
+
     res.json({
-      orders,
+      success: true,
+      order: formattedOrder
     });
   } catch (error) {
-    throw new Error(error);
+    console.error("Error fetching order:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching order",
+      error: error.message
+    });
   }
 });
 
@@ -527,90 +670,107 @@ const updateOrder = asyncHandler(async (req, res) => {
 });
 
 const getMonthWiseOrderIncome = asyncHandler(async (req, res) => {
-  let monthNames = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-  ];
-  let d = new Date();
-  let endDate = "";
-  d.setDate(1);
-  for (let index = 0; index < 11; index++) {
-    d.setMonth(d.getMonth() - 1);
-    endDate = monthNames[d.getMonth()] + " " + d.getFullYear();
+  try {
+    let monthNames = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ];
+    
+    let endDate = new Date();
+    endDate.setMonth(endDate.getMonth() - 11); // Get last 12 months
+    
+    const data = await Order.aggregate([
+      {
+        $match: {
+          createdAt: {
+            $lte: new Date(),
+            $gte: endDate
+          }
+        }
+      },
+      {
+        $group: {
+          _id: { $month: "$createdAt" },
+          amount: { $sum: "$totalPriceAfterDiscount" },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { "_id": 1 }
+      }
+    ]);
+
+    // Format the response to include month names
+    const formattedData = data.map(item => ({
+      month: monthNames[item._id - 1],
+      amount: item.amount || 0,
+      count: item.count || 0
+    }));
+
+    // Ensure we have data for all months
+    const completeData = monthNames.map((month, index) => {
+      const existingData = formattedData.find(d => d.month === month);
+      return existingData || {
+        month,
+        amount: 0,
+        count: 0
+      };
+    });
+
+    res.json({
+      success: true,
+      data: completeData
+    });
+  } catch (error) {
+    console.error("Error fetching monthly income:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching monthly income",
+      error: error.message
+    });
   }
-  const data = await Order.aggregate([
-    {
-      $match: {
-        createdAt: {
-          $lte: new Date(),
-          $gte: new Date(endDate),
-        },
-      },
-    },
-    {
-      $group: {
-        _id: {
-          month: "$month",
-        },
-        amount: { $sum: "$totalPriceAfterDiscount" },
-        count: { $sum: 1 },
-      },
-    },
-  ]);
-  res.json(data);
 });
 
 const getYearlyTotalOrder = asyncHandler(async (req, res) => {
-  let monthNames = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-  ];
-  let d = new Date();
-  let endDate = "";
-  d.setDate(1);
-  for (let index = 0; index < 11; index++) {
-    d.setMonth(d.getMonth() - 1);
-    endDate = monthNames[d.getMonth()] + " " + d.getFullYear();
+  try {
+    let endDate = new Date();
+    endDate.setFullYear(endDate.getFullYear() - 1); // Get last year
+    
+    const data = await Order.aggregate([
+      {
+        $match: {
+          createdAt: {
+            $lte: new Date(),
+            $gte: endDate
+          }
+        }
+      },
+      {
+        $group: {
+          _id: { $year: "$createdAt" },
+          totalOrders: { $sum: 1 },
+          totalAmount: { $sum: "$totalPriceAfterDiscount" }
+        }
+      }
+    ]);
+
+    const result = data[0] || { totalOrders: 0, totalAmount: 0 };
+
+    res.json({
+      success: true,
+      data: {
+        totalOrders: result.totalOrders || 0,
+        totalAmount: result.totalAmount || 0
+      }
+    });
+  } catch (error) {
+    console.error("Error fetching yearly orders:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching yearly orders",
+      error: error.message
+    });
   }
-  const data = await Order.aggregate([
-    {
-      $match: {
-        createdAt: {
-          $lte: new Date(),
-          $gte: new Date(endDate),
-        },
-      },
-    },
-    {
-      $group: {
-        _id: null,
-        amount: { $sum: 1 },
-        amount: { $sum: "$totalPriceAfterDiscount" },
-        count: { $sum: 1 },
-      },
-    },
-  ]);
-  res.json(data);
 });
 
 module.exports = {
