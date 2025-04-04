@@ -6,13 +6,21 @@ import { useDispatch, useSelector } from "react-redux";
 import { useFormik } from "formik";
 import * as yup from "yup";
 import axios from "axios";
-import { config } from "../utils/axiosConfig";
+import { config, base_url } from "../utils/axiosConfig";
 import {
   createAnOrder,
   deleteUserCart,
   getUserCart,
   resetState,
 } from "../features/user/userSlice";
+import { QRCodeSVG } from "qrcode.react";
+
+// UPI Configuration
+const UPI_CONFIG = {
+  upiId: "rajesh93601615@oksbi", // Replace with your UPI ID (e.g., "username@upi")
+  name: "RAJESH KRISHNAN", // Replace with your name
+  merchantCode: "0000" // Optional: Add your merchant code if you have one
+};
 
 let shippingSchema = yup.object({
   firstname: yup.string().required("First Name is Required"),
@@ -31,11 +39,13 @@ const Checkout = () => {
   const [totalAmount, setTotalAmount] = useState(null);
   const [shippingInfo, setShippingInfo] = useState(null);
   const [paymentInfo, setPaymentInfo] = useState({
-    razorpayPaymentId: "",
-    razorpayOrderId: "",
+    upiTransactionId: "",
+    paymentStatus: "Pending"
   });
   const navigate = useNavigate();
-  const [paymentMethod, setPaymentMethod] = useState("razorpay");
+  const [paymentMethod, setPaymentMethod] = useState("upi");
+  const [showQRCode, setShowQRCode] = useState(false);
+  const [upiTransactionId, setUpiTransactionId] = useState("");
 
   useEffect(() => {
     let sum = 0;
@@ -88,6 +98,63 @@ const Checkout = () => {
     }
   }, [cartState]);
 
+  const handleUPIPayment = async () => {
+    if (!upiTransactionId) {
+      alert("Please enter the UPI Transaction ID");
+      return;
+    }
+
+    try {
+      const address = JSON.parse(localStorage.getItem("address"));
+      const user = authState?.user; // Get user from Redux state
+      
+      if (!address || !user) {
+        throw new Error("Missing shipping information or user data");
+      }
+
+      // Create the order through the payment endpoint
+      const orderData = {
+        user: user._id,
+        amount: totalAmount + 5,
+        paymentMethod: "UPI",
+        upiTransactionId: upiTransactionId,
+        shippingInfo: {
+          firstname: address.firstname,
+          lastname: address.lastname,
+          address: address.address,
+          city: address.city,
+          state: address.state,
+          country: address.country,
+          pincode: address.pincode,
+          other: address.other || ""
+        },
+        orderItems: cartProductState
+      };
+
+      console.log("Creating UPI order with data:", orderData);
+
+      // Create order through the payment endpoint
+      const response = await axios.post(
+        `${base_url}user/order/create`,
+        orderData,
+        config2
+      );
+      
+      if (response.data.success) {
+        // Clear cart and reset state
+        await dispatch(deleteUserCart(config2));
+        dispatch(resetState());
+        localStorage.removeItem("address"); // Clean up stored address
+        navigate("/my-orders");
+      } else {
+        throw new Error(response.data.message || "Failed to create order");
+      }
+    } catch (error) {
+      console.error("Error processing UPI payment:", error);
+      alert(error.response?.data?.message || error.message || "Failed to process payment. Please try again.");
+    }
+  };
+
   const formik = useFormik({
     initialValues: {
       firstname: "",
@@ -107,7 +174,17 @@ const Checkout = () => {
           return;
         }
 
+        if (paymentMethod === "upi") {
+          // For UPI, just show the QR code
+          localStorage.setItem("address", JSON.stringify(values));
+          setShowQRCode(true);
+          return;
+        }
+
+        // For COD, proceed with order creation
+        const user = JSON.parse(localStorage.getItem("customer"));
         const orderData = {
+          user: user._id,
           shippingInfo: {
             firstname: values.firstname,
             lastname: values.lastname,
@@ -119,178 +196,63 @@ const Checkout = () => {
             other: values.other || ""
           },
           orderItems: cartProductState,
-          totalPrice: totalAmount + 50, // Including shipping cost
-          totalPriceAfterDiscount: totalAmount + 50,
+          totalPrice: totalAmount + 5,
+          totalPriceAfterDiscount: totalAmount + 5,
           paymentInfo: {
-            razorpayOrderId: paymentMethod === "cod" ? `COD-${Date.now()}` : "",
-            razorpayPaymentId: paymentMethod === "cod" ? `COD-${Date.now()}` : "",
-            paymentMethod: paymentMethod.toUpperCase(),
-            paymentStatus: paymentMethod === "cod" ? "Pending" : "Pending"
-          }
+            upiTransactionId: `COD-${Date.now()}`,
+            paymentMethod: "COD",
+            paymentStatus: "Pending"
+          },
+          orderStatus: "Processing",
+          paidAt: new Date(),
+          month: new Date().getMonth()
         };
 
-        console.log("Submitting order:", orderData);
+        console.log("Creating COD order with data:", orderData);
 
-        if (paymentMethod === "cod") {
-          const orderResult = await dispatch(createAnOrder(orderData)).unwrap();
-          console.log("Order result:", orderResult);
-          
-          if (orderResult.success) {
-            await dispatch(deleteUserCart(config2));
-            dispatch(resetState());
-            navigate("/my-orders");
-          } else {
-            console.error("Order creation failed:", orderResult);
-          }
-        } else {
-          localStorage.setItem("address", JSON.stringify(values));
-          checkOutHandler();
+        const orderResult = await dispatch(createAnOrder(orderData)).unwrap();
+        if (orderResult.success) {
+          await dispatch(deleteUserCart(config2));
+          dispatch(resetState());
+          navigate("/my-orders");
         }
       } catch (error) {
         console.error("Error processing order:", error);
-        if (error.response) {
-          console.error("Error response:", error.response.data);
-        }
+        alert(error.response?.data?.message || error.message || "Failed to process order. Please try again.");
       }
     },
   });
-
-  const loadScript = (src) => {
-    return new Promise((resolve) => {
-      const script = document.createElement("script");
-      script.src = src;
-      script.onload = () => {
-        resolve(true);
-      };
-      script.onerror = () => {
-        resolve(false);
-      };
-      document.body.appendChild(script);
-    });
-  };
-
-  const checkOutHandler = async () => {
-    const res = await loadScript(
-      "https://checkout.razorpay.com/v1/checkout.js"
-    );
-
-    if (!res) {
-      alert("Razorpay SDK faild to Load");
-      return;
-    }
-    const result = await axios.post(
-      "https://test2-60yt.onrender.com/api/user/order/checkout",
-      { amount: totalAmount + 50 },
-      config
-    );
-
-    if (!result) {
-      alert("Something Went Wrong");
-      return;
-    }
-
-    const { amount, id: order_id, currency } = result.data.order;
-
-    const options = {
-      key: "rzp_test_HSSeDI22muUrLR", // Enter the Key ID generated from the Dashboard
-      amount: amount,
-      currency: currency,
-      name: "Cart's corner",
-      description: "Test Transaction",
-
-      order_id: order_id,
-      handler: async function (response) {
-        const data = {
-          orderCreationId: order_id,
-          razorpayPaymentId: response.razorpay_payment_id,
-          razorpayOrderId: response.razorpay_order_id,
-        };
-
-        const result = await axios.post(
-          "https://test2-60yt.onrender.com/api/user/order/paymentVerification",
-          data,
-          config
-        );
-
-        dispatch(
-          createAnOrder({
-            totalPrice: totalAmount,
-            totalPriceAfterDiscount: totalAmount,
-            orderItems: cartProductState,
-            paymentInfo: result.data,
-            shippingInfo: JSON.parse(localStorage.getItem("address")),
-          })
-        );
-        dispatch(deleteUserCart(config2));
-        localStorage.removeItem("address");
-        dispatch(resetState());
-      },
-      prefill: {
-        name: "prabanjam",
-        email: "prabanjam.original@gmail.com",
-        contact: "+91 97918 46885",
-      },
-      notes: {
-        address: "prabanjam PGM Enterprises:",
-      },
-      theme: {
-        color: "#61dafb",
-      },
-    };
-
-    const paymentObject = new window.Razorpay(options);
-    paymentObject.open();
-  };
-
-  const handlePaymentSubmit = (e) => {
-    e.preventDefault();
-    formik.handleSubmit();
-  };
 
   return (
     <>
       <Container class1="checkout-wrapper py-5 home-wrapper-2">
         <div className="row">
-          <div className="col-7">
+          <div className="col-12">
             <div className="checkout-left-data">
-              <h3 className="website-name">Cart Corner</h3>
+              <h3 className="website-name">Cart's Corner</h3>
               <nav
-                style={{ "--bs-breadcrumb-divider": ">" }}
                 aria-label="breadcrumb"
+                className="d-flex align-items-center"
               >
                 <ol className="breadcrumb">
                   <li className="breadcrumb-item">
-                    <Link className="text-dark total-price" to="/cart">
-                      Cart
-                    </Link>
+                    <Link to="/cart">Cart</Link>
                   </li>
                   &nbsp; /&nbsp;
-                  <li
-                    className="breadcrumb-ite total-price active"
-                    aria-current="page"
-                  >
-                    Information
-                  </li>
-                  &nbsp; /
-                  <li className="breadcrumb-item total-price active">
-                    Shipping
-                  </li>
-                  &nbsp; /
-                  <li
-                    className="breadcrumb-item total-price active"
-                    aria-current="page"
-                  >
-                    Payment
+                  <li className="breadcrumb-item total">
+                    <a aria-current="page">Checkout</a>
                   </li>
                 </ol>
               </nav>
-              <h4 className="title total">Contact Information</h4>
-              <p className="user-details total">
-                prabanjam (prabanjam.original@gmail.com)
-              </p>
+            </div>
+          </div>
+        </div>
+        <div className="row">
+          <div className="col-12">
+            <div className="checkout-right-data">
               <h4 className="mb-3">Shipping Address</h4>
               <form
-                onSubmit={handlePaymentSubmit}
+                onSubmit={formik.handleSubmit}
                 className="d-flex gap-15 flex-wrap justify-content-between"
               >
                 <div className="w-100">
@@ -412,21 +374,7 @@ const Checkout = () => {
                 </div>
                 <div className="w-100 mt-3">
                   <h4 className="mb-3">Payment Method</h4>
-                  <div className="d-flex gap-3">
-                    <div className="form-check">
-                      <input
-                        type="radio"
-                        className="form-check-input"
-                        id="razorpay"
-                        name="paymentMethod"
-                        value="razorpay"
-                        checked={paymentMethod === "razorpay"}
-                        onChange={(e) => setPaymentMethod(e.target.value)}
-                      />
-                      <label className="form-check-label" htmlFor="razorpay">
-                        Online Payment (Razorpay)
-                      </label>
-                    </div>
+                  <div className="d-flex gap-15 align-items-center">
                     <div className="form-check">
                       <input
                         type="radio"
@@ -438,85 +386,71 @@ const Checkout = () => {
                         onChange={(e) => setPaymentMethod(e.target.value)}
                       />
                       <label className="form-check-label" htmlFor="cod">
-                        Cash on Delivery
+                        Cash On Delivery
+                      </label>
+                    </div>
+                    <div className="form-check">
+                      <input
+                        type="radio"
+                        className="form-check-input"
+                        id="upi"
+                        name="paymentMethod"
+                        value="upi"
+                        checked={paymentMethod === "upi"}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                      />
+                      <label className="form-check-label" htmlFor="upi">
+                        UPI Payment
                       </label>
                     </div>
                   </div>
                 </div>
-                <div className="w-100">
-                  <div className="d-flex justify-content-between align-items-center">
-                    <Link to="/cart" className="text-dark">
-                      <BiArrowBack className="me-2" />
-                      Return to Cart
-                    </Link>
-                    <button 
-                      className="button" 
-                      type="submit"
-                    >
-                      {paymentMethod === "cod" ? "Place COD Order" : "Proceed to Pay"}
-                    </button>
-                  </div>
-                </div>
-              </form>
-            </div>
-          </div>
-          <div className="col-5">
-            <div className="border-bottom py-4">
-              {cartState &&
-                cartState?.map((item, index) => {
-                  return (
-                    <div
-                      key={index}
-                      className="d-flex gap-10 mb-2 align-align-items-center"
-                    >
-                      <div className="w-75 d-flex gap-10">
-                        <div className="w-25 position-relative">
-                          <span
-                            style={{ top: "-10px", right: "2px" }}
-                            className="badge bg-secondary text-white rounded-circle p-2 position-absolute"
-                          >
-                            {item?.quantity}
-                          </span>
-                          <img
-                            src={item?.productId?.images[0]?.url}
-                            width={100}
-                            height={100}
-                            alt="product"
-                          />
-                        </div>
-                        <div>
-                          <h5 className="total-price">
-                            {item?.productId?.title}
-                          </h5>
-                          <p className="total-price">{item?.color?.title}</p>
-                        </div>
+
+                {showQRCode && paymentMethod === "upi" && (
+                  <div className="w-100 mt-4">
+                    <div className="d-flex flex-column align-items-center">
+                      <h4 className="mb-3">Scan QR Code to Pay</h4>
+                      <div className="p-3 border rounded">
+                        <QRCodeSVG 
+                          value={`upi://pay?pa=${UPI_CONFIG.upiId}&pn=${UPI_CONFIG.name}&am=${totalAmount + 5}&cu=INR&mc=${UPI_CONFIG.merchantCode}`}
+                          size={200}
+                        />
                       </div>
-                      <div className="flex-grow-1">
-                        <h5 className="total">
-                          Rs. {item?.price * item?.quantity}
-                        </h5>
+                      <div className="mt-3 text-center">
+                        <p className="mb-2">UPI ID: {UPI_CONFIG.upiId}</p>
+                        <p className="mb-2">Amount: ₹{totalAmount + 5}</p>
+                        <p className="mb-3">Name: {UPI_CONFIG.name}</p>
+                        <div className="d-flex gap-2 justify-content-center">
+                          <input
+                            type="text"
+                            className="form-control"
+                            placeholder="Enter UPI Transaction ID"
+                            value={upiTransactionId}
+                            onChange={(e) => setUpiTransactionId(e.target.value)}
+                          />
+                          <button
+                            type="button"
+                            className="button border-0"
+                            onClick={handleUPIPayment}
+                          >
+                            Confirm Payment
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  );
-                })}
-            </div>
-            <div className="border-bottom py-4">
-              <div className="d-flex justify-content-between align-items-center">
-                <p className="total">Subtotal</p>
-                <p className="total-price">
-                  Rs. {totalAmount ? totalAmount : "0"}
-                </p>
-              </div>
-              <div className="d-flex justify-content-between align-items-center">
-                <p className="mb-0 total">Shipping</p>
-                <p className="mb-0 total-price">Rs. 50</p>
-              </div>
-            </div>
-            <div className="d-flex justify-content-between align-items-center border-bootom py-4">
-              <h4 className="total">Total</h4>
-              <h5 className="total-price">
-                Rs. {totalAmount ? totalAmount + 50 : "0"}
-              </h5>
+                  </div>
+                )}
+
+                <div className="w-100 mt-3">
+                  <button
+                    type="submit"
+                    className="button border-0"
+                    disabled={paymentMethod === "upi" && showQRCode}
+                  >
+                    {paymentMethod === "upi" ? "Proceed to Payment" : "Place Order"}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>
