@@ -33,7 +33,7 @@ const MainLayout = () => {
         <div className="logo">
           <h2 className="text-white fs-5 text-center py-3 mb-0">
             <span className="sm-logo">CC</span>
-            <span className="lg-logo">Cart Corner</span>
+            <span className="lg-logo">PGM ADMIN </span>
           </h2>
         </div>
         <Menu

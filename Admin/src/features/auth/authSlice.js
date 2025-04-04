@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import authService from "./authServices";
 import { toast } from "react-toastify";
+import axios from "axios";
 
 const getUserfromLocalStorage = localStorage.getItem("user")
   ? JSON.parse(localStorage.getItem("user"))
@@ -74,6 +75,18 @@ export const getYearlyData = createAsyncThunk(
       return await authService.getYearlyStats(data);
     } catch (error) {
       return thunkAPI.rejectWithValue(error);
+    }
+  }
+);
+
+export const getOrderById = createAsyncThunk(
+  "order/get-order-by-id",
+  async (id, thunkAPI) => {
+    try {
+      const response = await axios.get(`/api/user/order/${id}`);
+      return response.data;
+    } catch (error) {
+      return thunkAPI.rejectWithValue(error.response.data);
     }
   }
 );
@@ -181,6 +194,23 @@ export const authSlice = createSlice({
         state.isSuccess = false;
         state.message = action.error;
         state.isLoading = false;
+      })
+      .addCase(getOrderById.pending, (state) => {
+        state.order = {
+          loading: true,
+        };
+      })
+      .addCase(getOrderById.fulfilled, (state, action) => {
+        state.order = {
+          loading: false,
+          order: action.payload,
+        };
+      })
+      .addCase(getOrderById.rejected, (state, action) => {
+        state.order = {
+          loading: false,
+          error: action.payload,
+        };
       });
   },
 });

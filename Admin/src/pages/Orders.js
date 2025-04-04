@@ -29,6 +29,10 @@ const columns = [
     dataIndex: "paymentMethod",
   },
   {
+    title: "Shipping Info",
+    dataIndex: "shippingInfo",
+  },
+  {
     title: "Status",
     dataIndex: "status",
   },
@@ -63,10 +67,34 @@ const Orders = () => {
       key: i + 1,
       name: orderState[i]?.user?.firstname + " " + orderState[i]?.user?.lastname,
       product: (
-        <Link to={`/admin/order/${orderState[i]?._id}`}>View Orders</Link>
+        <Link to={`/admin-dashboard/order/${orderState[i]?._id}`} className="btn btn-primary">
+          View Order Details
+        </Link>
       ),
       amount: `₹${orderState[i]?.totalPrice}`,
-      paymentMethod: orderState[i]?.paymentInfo?.paymentMethod || "COD",
+      paymentMethod: (
+        <div>
+          {orderState[i]?.paymentInfo?.paymentMethod || "COD"}
+          {orderState[i]?.paymentInfo?.paymentMethod === "UPI" && (
+            <div style={{ fontSize: "12px", color: "#666" }}>
+              Transaction ID: {orderState[i]?.paymentInfo?.upiTransactionId}
+            </div>
+          )}
+        </div>
+      ),
+      shippingInfo: (
+        <div className="shipping-info">
+          <p><strong>Name:</strong> {orderState[i]?.shippingInfo?.firstname} {orderState[i]?.shippingInfo?.lastname}</p>
+          <p><strong>Address:</strong> {orderState[i]?.shippingInfo?.address}</p>
+          <p><strong>City:</strong> {orderState[i]?.shippingInfo?.city}</p>
+          <p><strong>State:</strong> {orderState[i]?.shippingInfo?.state}</p>
+          <p><strong>Country:</strong> {orderState[i]?.shippingInfo?.country}</p>
+          <p><strong>Pincode:</strong> {orderState[i]?.shippingInfo?.pincode}</p>
+          {orderState[i]?.shippingInfo?.other && (
+            <p><strong>Additional Info:</strong> {orderState[i]?.shippingInfo?.other}</p>
+          )}
+        </div>
+      ),
       status: (
         <>
           <select
@@ -78,12 +106,9 @@ const Orders = () => {
             className="form-control form-select"
             id=""
           >
-            <option value="Ordered" disabled selected>
-              Ordered
-            </option>
+            <option value="Not Processed">Not Processed</option>
             <option value="Processing">Processing</option>
-            <option value="Shipped">Shipped</option>
-            <option value="Out for Delivery">Out for Delivery</option>
+            <option value="Dispatched">Dispatched</option>
             <option value="Delivered">Delivered</option>
             <option value="Cancelled">Cancelled</option>
           </select>
@@ -93,7 +118,7 @@ const Orders = () => {
       action: (
         <>
           <Link
-            to={`/admin/order/${orderState[i]?._id}`}
+            to={`/admin-dashboard/order/${orderState[i]?._id}`}
             className="fs-3 text-success"
           >
             <BiEdit />

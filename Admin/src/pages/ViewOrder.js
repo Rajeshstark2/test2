@@ -34,7 +34,7 @@ const ViewOrder = () => {
   useEffect(() => {
     dispatch(getaOrder(orderId));
   }, []);
-  const orderState = useSelector((state) => state?.auth?.singleorder?.orders);
+  const orderState = useSelector((state) => state?.auth?.singleorder?.order || {});
 
   const data1 = [];
   for (let i = 0; i < orderState?.orderItems?.length; i++) {
@@ -59,6 +59,12 @@ const ViewOrder = () => {
             <p><strong>Order ID:</strong> {orderState?._id}</p>
             <p><strong>Order Date:</strong> {new Date(orderState?.createdAt).toLocaleString()}</p>
             <p><strong>Payment Method:</strong> {orderState?.paymentInfo?.paymentMethod || "COD"}</p>
+            {orderState?.paymentInfo?.paymentMethod === "UPI" && (
+              <p><strong>UPI Transaction ID:</strong> {orderState?.paymentInfo?.upiTransactionId}</p>
+            )}
+            {orderState?.paymentInfo?.paymentMethod === "Card" && (
+              <p><strong>Card Transaction ID:</strong> {orderState?.paymentInfo?.transactionId}</p>
+            )}
             <p><strong>Payment Status:</strong> {orderState?.paymentInfo?.paymentStatus || "Pending"}</p>
             <p><strong>Total Amount:</strong> ₹{orderState?.totalPrice}</p>
             <p><strong>Order Status:</strong> {orderState?.orderStatus}</p>
@@ -71,7 +77,9 @@ const ViewOrder = () => {
             <p><strong>State:</strong> {orderState?.shippingInfo?.state}</p>
             <p><strong>Country:</strong> {orderState?.shippingInfo?.country}</p>
             <p><strong>Pincode:</strong> {orderState?.shippingInfo?.pincode}</p>
-            <p><strong>Phone:</strong> {orderState?.shippingInfo?.mobile}</p>
+            {orderState?.shippingInfo?.other && (
+              <p><strong>Additional Info:</strong> {orderState?.shippingInfo?.other}</p>
+            )}
           </div>
         </div>
       </div>

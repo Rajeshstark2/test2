@@ -14,28 +14,39 @@ const login = async (user) => {
   return response.data;
 };
 const getOrders = async (data) => {
-  const response = await axios.get(`${base_url}user/getallorders`, data);
-
-  return response.data;
+  try {
+    const response = await axios.get(`${base_url}user/getallorders`, data);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching orders:", error);
+    throw error;
+  }
 };
 const getOrder = async (id) => {
-  const response = await axios.get(
-    `${base_url}user/getaOrder/${id}`,
-
-    config
-  );
-
-  return response.data;
+  try {
+    const response = await axios.get(
+      `${base_url}user/getaOrder/${id}`,
+      config
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching order:", error);
+    throw error;
+  }
 };
 
 const updateOrder = async (data) => {
-  const response = await axios.put(
-    `${base_url}user/updateOrder/${data.id}`,
-    { status: data.status },
-    config
-  );
-
-  return response.data;
+  try {
+    const response = await axios.put(
+      `${base_url}user/updateOrder/${data.id}`,
+      { status: data.status },
+      config
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error updating order:", error);
+    throw error;
+  }
 };
 
 const getMonthlyOrders = async (data) => {
