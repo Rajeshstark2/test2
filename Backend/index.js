@@ -24,7 +24,7 @@ dbConnect();
 
 // CORS configuration
 const corsOptions = {
-  origin: ['https://prabanjampgm.in', 'https://pgmadmin.netlify.app'],
+  origin: ['https://prabanjampgm.in', 'https://pgmadmin.netlify.app','http://localhost:3000'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   credentials: true,
