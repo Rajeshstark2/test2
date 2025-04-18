@@ -17,8 +17,8 @@ import { QRCodeSVG } from "qrcode.react";
 
 // UPI Configuration
 const UPI_CONFIG = {
-  upiId: "kalpanamtp1984@okicici", // Replace with your UPI ID (e.g., "username@upi")
-  name: "KALPANA DEVI ", // Replace with your name
+  upiId: "rajesh93601615@oksbi", // Replace with your UPI ID (e.g., "username@upi")
+  name: "RAJESH KRISHNAN", // Replace with your name
   merchantCode: "0000" // Optional: Add your merchant code if you have one
 };
 
@@ -196,8 +196,8 @@ const Checkout = () => {
             other: values.other || ""
           },
           orderItems: cartProductState,
-          totalPrice: totalAmount + 50,
-          totalPriceAfterDiscount: totalAmount + 50,
+          totalPrice: totalAmount + 5,
+          totalPriceAfterDiscount: totalAmount + 5,
           paymentInfo: {
             upiTransactionId: `COD-${Date.now()}`,
             paymentMethod: "COD",
@@ -412,7 +412,7 @@ const Checkout = () => {
                       <h4 className="mb-3">Scan QR Code to Pay</h4>
                       <div className="p-3 border rounded">
                         <QRCodeSVG 
-                          value={`upi://pay?pa=${UPI_CONFIG.upiId}&pn=${UPI_CONFIG.name}&am=${totalAmount + 50}&cu=INR&mc=${UPI_CONFIG.merchantCode}`}
+                          value={`upi://pay?pa=${UPI_CONFIG.upiId}&pn=${UPI_CONFIG.name}&am=${totalAmount + 5}&cu=INR&mc=${UPI_CONFIG.merchantCode}`}
                           size={200}
                         />
                       </div>

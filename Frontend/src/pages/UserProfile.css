@@ -1,0 +1,238 @@
+/* User Profile Page Styles */
+.profile-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Profile Header */
+.profile-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.profile-header h1 {
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+
+/* Profile Content */
+.profile-content {
+  display: grid;
+  gap: 30px;
+}
+
+/* Profile Info */
+.profile-info {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.profile-info h2 {
+  font-size: 20px;
+  margin-bottom: 20px;
+}
+
+.info-grid {
+  display: grid;
+  gap: 15px;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.info-label {
+  font-weight: 600;
+  color: #333;
+}
+
+.info-value {
+  color: #666;
+}
+
+/* Profile Form */
+.profile-form {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  font-weight: 600;
+  color: #333;
+}
+
+.form-group input {
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 16px;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* Order History */
+.order-history {
+  margin-top: 30px;
+}
+
+.order-history h2 {
+  font-size: 20px;
+  margin-bottom: 20px;
+}
+
+.order-list {
+  display: grid;
+  gap: 15px;
+}
+
+.order-item {
+  background: white;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.order-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.order-id {
+  font-weight: 600;
+}
+
+.order-date {
+  color: #666;
+}
+
+.order-status {
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.status-processing {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.status-shipped {
+  background: #cce5ff;
+  color: #004085;
+}
+
+.status-delivered {
+  background: #d4edda;
+  color: #155724;
+}
+
+.order-details {
+  margin-top: 10px;
+}
+
+.order-total {
+  font-weight: 600;
+  margin-top: 10px;
+}
+
+/* Buttons */
+.update-btn {
+  padding: 12px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.update-btn:hover {
+  background: #0056b3;
+}
+
+/* Responsive Design */
+@media (min-width: 768px) {
+  .profile-content {
+    grid-template-columns: 1fr 2fr;
+  }
+  
+  .order-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 992px) {
+  .order-list {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Loading State */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid #f3f3f3;
+  border-top: 5px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Error Message */
+.error-message {
+  color: #dc3545;
+  font-size: 16px;
+  text-align: center;
+  padding: 20px;
+  background: #f8d7da;
+  border-radius: 5px;
+  margin: 20px 0;
+}
+
+/* Success Message */
+.success-message {
+  color: #28a745;
+  font-size: 16px;
+  text-align: center;
+  padding: 20px;
+  background: #d4edda;
+  border-radius: 5px;
+  margin: 20px 0;
+} 
